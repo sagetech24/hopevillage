@@ -38,6 +38,129 @@
                 @endif
             </div>
 
+            <div class="bg-white shadow-md rounded-lg p-6 space-y-4">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h3 class="font-semibold text-gray-900">{{ __('Product trends (fulfilled, last 30 days)') }}</h3>
+                        <p class="text-sm text-gray-600 mt-1">{{ __('Top products by fulfilled units and points redeemed.') }}</p>
+                    </div>
+                    @if ($productTrend['hasData'])
+                        <div class="inline-flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+                            <button
+                                type="button"
+                                wire:click="setTrendMetric('quantity')"
+                                class="px-3 py-1.5 {{ $trendMetric === 'quantity' ? 'bg-orange-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50' }}"
+                            >
+                                {{ __('Quantity') }}
+                            </button>
+                            <button
+                                type="button"
+                                wire:click="setTrendMetric('points')"
+                                class="px-3 py-1.5 border-l border-gray-200 {{ $trendMetric === 'points' ? 'bg-orange-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50' }}"
+                            >
+                                {{ __('Points') }}
+                            </button>
+                        </div>
+                    @endif
+                </div>
+
+                @if ($productTrend['hasData'])
+                    <div class="flex flex-wrap gap-3">
+                        <div class="rounded-lg bg-orange-50 px-4 py-2">
+                            <div class="text-xs font-medium text-orange-700 uppercase tracking-wide">{{ __('Units fulfilled') }}</div>
+                            <div class="text-lg font-semibold text-orange-900">{{ number_format($productTrend['totals']['quantity']) }}</div>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 px-4 py-2">
+                            <div class="text-xs font-medium text-gray-600 uppercase tracking-wide">{{ __('Points redeemed') }}</div>
+                            <div class="text-lg font-semibold text-gray-900">{{ number_format($productTrend['totals']['points']) }}</div>
+                        </div>
+                    </div>
+
+                    <div class="relative h-80" wire:key="product-trend-chart-{{ $trendMetric }}">
+                        <canvas
+                            wire:ignore
+                            x-data="{
+                                chart: null,
+                                init() {
+                                    const ctx = this.$el.getContext('2d');
+                                    this.chart = new Chart(ctx, {
+                                        type: 'line',
+                                        data: {
+                                            labels: @js($productTrend['labels']),
+                                            datasets: @js($productTrend['datasets'])
+                                        },
+                                        options: {
+                                            responsive: true,
+                                            maintainAspectRatio: false,
+                                            plugins: {
+                                                legend: {
+                                                    position: 'bottom'
+                                                }
+                                            },
+                                            scales: {
+                                                y: {
+                                                    beginAtZero: true,
+                                                    ticks: {
+                                                        precision: 0
+                                                    },
+                                                    grid: {
+                                                        color: 'rgba(0, 0, 0, 0.05)'
+                                                    }
+                                                },
+                                                x: {
+                                                    grid: {
+                                                        display: false
+                                                    },
+                                                    ticks: {
+                                                        maxRotation: 45,
+                                                        minRotation: 45
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    });
+                                },
+                                destroy() {
+                                    if (this.chart) {
+                                        this.chart.destroy();
+                                        this.chart = null;
+                                    }
+                                }
+                            }"
+                        ></canvas>
+                    </div>
+
+                    <div class="overflow-x-auto border border-gray-100 rounded-lg">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Rank') }}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Quantity') }}</th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Points') }}</th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Share') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @foreach ($productTrend['ranking'] as $index => $row)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3 text-sm text-gray-500">{{ $index + 1 }}</td>
+                                        <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ $row['name'] }}</td>
+                                        <td class="px-4 py-3 text-sm text-right text-gray-700">{{ number_format($row['quantity']) }}</td>
+                                        <td class="px-4 py-3 text-sm text-right text-orange-600 font-medium">{{ number_format($row['points']) }}</td>
+                                        <td class="px-4 py-3 text-sm text-right text-gray-500">{{ number_format($row['share'], 1) }}%</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <p class="text-sm text-gray-600 py-6 text-center">
+                        {{ __('No fulfilled items in the last 30 days.') }}
+                    </p>
+                @endif
+            </div>
+
             <div class="bg-white overflow-hidden shadow-md sm:rounded-lg">
                 <div class="p-4 border-b border-gray-200 flex flex-wrap items-end justify-between gap-4">
                     <div>
