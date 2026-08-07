@@ -2,14 +2,16 @@
 
 namespace App\Livewire\Members;
 
-use App\Models\PointLog;
-use App\Models\MemberActivity;
 use App\Models\EventRegistration;
+use App\Models\MarketplaceOrder;
+use App\Models\MemberActivity;
+use App\Models\PointLog;
+use App\Models\User;
 use App\Services\PointsService;
-use Livewire\Component;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Livewire\Component;
 
 class SetActivityVoidButton extends Component
 {
@@ -23,6 +25,7 @@ class SetActivityVoidButton extends Component
 
         if (! auth()->user()?->isAdmin()) {
             session()->flash('error', 'You do not have permission to set activity as void.');
+
             return;
         }
 
@@ -30,23 +33,25 @@ class SetActivityVoidButton extends Component
             return;
         }
 
-        $metadata = array_merge($this->memberActivity->metadata ?? [], ['status' => 'void']);
-        $this->memberActivity->update(['metadata' => $metadata]);
-
         $pointLog = $this->memberActivity->pointLog;
         $user = $this->memberActivity->user;
         $activityTypeName = $this->memberActivity->activityType?->name;
         $meta = $this->memberActivity->metadata ?? [];
+        $isMarketplaceRedeem = $activityTypeName === PointsService::ACTIVITY_MARKETPLACE_REDEEM;
 
         $pointsToDeduct = 0;
-        if ($pointLog && $pointLog->points > 0) {
+        if (! $isMarketplaceRedeem && $pointLog && $pointLog->points > 0) {
             $pointsToDeduct = min($pointLog->points, (int) $user->total_points);
         }
 
         $randomCode = Str::random(8);
+        $admin = auth()->user();
 
-        DB::transaction(function () use ($pointLog, $user, $pointsToDeduct, $randomCode, $activityTypeName, $meta) {
-            // 1. Points reversal (existing behaviour)
+        DB::transaction(function () use ($pointLog, $user, $pointsToDeduct, $randomCode, $activityTypeName, $meta, $isMarketplaceRedeem, $admin) {
+            $metadata = array_merge($this->memberActivity->metadata ?? [], ['status' => 'void']);
+            $this->memberActivity->update(['metadata' => $metadata]);
+
+            // 1. Points reversal for award activities (positive point logs)
             if ($pointsToDeduct > 0 && $pointLog) {
                 PointLog::query()->create([
                     'user_id' => $user->id,
@@ -62,11 +67,16 @@ class SetActivityVoidButton extends Component
                 $user->decrement('total_points', $pointsToDeduct);
             }
 
+            // 1b. Marketplace redeem: credit points back and void the fulfilled order
+            if ($isMarketplaceRedeem) {
+                $this->voidMarketplaceRedeem($user, $pointLog, $meta, $admin, $randomCode);
+            }
+
             // 2. Register or attend event: delete user from event_registrations
             $eventActivityNames = [
-                PointsService::ACTIVITY_EVENT_JOIN,   // member_join_event (register)
-                PointsService::ACTIVITY_EVENT_ATTEND, // member_attend_event (attend)
-                'member_attend_event',                // legacy from EventQrCodeModal
+                PointsService::ACTIVITY_EVENT_JOIN,
+                PointsService::ACTIVITY_EVENT_ATTEND,
+                'member_attend_event',
             ];
             if (in_array($activityTypeName, $eventActivityNames, true)) {
                 $eventId = $meta['event_id'] ?? null;
@@ -85,8 +95,8 @@ class SetActivityVoidButton extends Component
 
             // 3. Claim or redeem merchant voucher: remove user from user_voucher
             $merchantVoucherActivityNames = [
-                PointsService::ACTIVITY_VOUCHER_CLAIM,  // member_claim_voucher
-                PointsService::ACTIVITY_VOUCHER_REDEEM, // member_redeem_voucher
+                PointsService::ACTIVITY_VOUCHER_CLAIM,
+                PointsService::ACTIVITY_VOUCHER_REDEEM,
             ];
             if (in_array($activityTypeName, $merchantVoucherActivityNames, true)) {
                 $voucherId = $meta['voucher_id'] ?? null;
@@ -102,7 +112,7 @@ class SetActivityVoidButton extends Component
 
             // 4. Claim or redeem admin voucher: remove user from user_admin_voucher
             $adminVoucherActivityNames = [
-                PointsService::ACTIVITY_ADMIN_VOUCHER_CLAIM, // member_claim_admin_voucher
+                PointsService::ACTIVITY_ADMIN_VOUCHER_CLAIM,
             ];
             if (in_array($activityTypeName, $adminVoucherActivityNames, true)) {
                 $adminVoucherId = $meta['admin_voucher_id'] ?? null;
@@ -131,8 +141,73 @@ class SetActivityVoidButton extends Component
             ]);
         }
 
+        $this->memberActivity->refresh();
         $this->showMessage = true;
         $this->dispatch('activity-updated');
+    }
+
+    /**
+     * Credit back marketplace spend and mark the linked fulfilled order as voided.
+     */
+    private function voidMarketplaceRedeem(
+        User $user,
+        ?PointLog $pointLog,
+        array $meta,
+        User $admin,
+        string $randomCode,
+    ): void {
+        $orderId = isset($meta['marketplace_order_id']) ? (int) $meta['marketplace_order_id'] : null;
+        $order = $orderId
+            ? MarketplaceOrder::query()->whereKey($orderId)->first()
+            : null;
+
+        if ($order && $order->status === MarketplaceOrder::STATUS_FULFILLED) {
+            $order->voidByAdmin(
+                $admin,
+                'Voided via member activity #'.$this->memberActivity->id.' (trx: '.$randomCode.')',
+            );
+
+            Log::info('Activity voided: marketplace order voided and points credited', [
+                'admin_id' => $admin->id,
+                'member_activity_id' => $this->memberActivity->id,
+                'marketplace_order_id' => $order->id,
+                'user_id' => $user->id,
+                'points_credited' => (int) $order->points_total,
+                'trx_code' => $randomCode,
+            ]);
+
+            return;
+        }
+
+        // Fallback: no fulfilled order found — credit from the original spend log
+        $pointsToCredit = 0;
+        if ($pointLog && $pointLog->points < 0) {
+            $pointsToCredit = abs((int) $pointLog->points);
+        } elseif (! empty($meta['points_total'])) {
+            $pointsToCredit = (int) $meta['points_total'];
+        }
+
+        if ($pointsToCredit > 0) {
+            $lockedUser = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            app(PointsService::class)->creditPointsWithinTransaction(
+                $lockedUser,
+                $pointsToCredit,
+                PointsService::ACTIVITY_MARKETPLACE_REFUND,
+                'Refund for voided marketplace redeem (Member Activity #'.$this->memberActivity->id.') - trx: '.$randomCode,
+                null,
+                null,
+            );
+
+            Log::info('Activity voided: marketplace redeem points credited without order update', [
+                'admin_id' => $admin->id,
+                'member_activity_id' => $this->memberActivity->id,
+                'marketplace_order_id' => $orderId,
+                'order_status' => $order?->status,
+                'user_id' => $user->id,
+                'points_credited' => $pointsToCredit,
+                'trx_code' => $randomCode,
+            ]);
+        }
     }
 
     public function render()

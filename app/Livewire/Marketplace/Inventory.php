@@ -2,73 +2,33 @@
 
 namespace App\Livewire\Marketplace;
 
+use App\Models\MarketplaceItem;
 use App\Models\MarketplaceOrder;
-use App\Models\User;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-class Orders extends Component
+class Inventory extends Component
 {
     use WithPagination;
 
+    public MarketplaceItem $item;
+
     public string $statusFilter = 'all';
-
-    public string $memberQrLookup = '';
-
-    public ?int $selectedMemberId = null;
 
     protected $paginationTheme = 'tailwind';
 
-    protected $listeners = [
-        'qr-code-scanned' => 'onQrCodeScanned',
-    ];
-
-    public function mount(): void
+    public function mount(int $id): void
     {
         abort_unless(auth()->user()?->canAccessAdminMarketplace(), 403);
+
+        $this->item = MarketplaceItem::withTrashed()
+            ->with(['category', 'locations'])
+            ->findOrFail($id);
     }
 
     public function updatingStatusFilter(): void
     {
         $this->resetPage();
-    }
-
-    public function onQrCodeScanned($value = null): void
-    {
-        if ($value === null) {
-            return;
-        }
-        if (is_array($value)) {
-            $value = $value[0] ?? reset($value);
-        }
-        $this->memberQrLookup = trim((string) $value);
-        $this->lookupMember();
-    }
-
-    public function lookupMember(): void
-    {
-        $code = trim($this->memberQrLookup);
-        if ($code === '') {
-            $this->selectedMemberId = null;
-
-            return;
-        }
-
-        $member = User::query()
-            ->where('user_type', 'member')
-            ->where('qr_code', $code)
-            ->first();
-
-        $this->selectedMemberId = $member?->id;
-        if (! $member) {
-            $this->dispatch('notify', type: 'error', message: 'No member found with this QR code.');
-        }
-    }
-
-    public function clearMember(): void
-    {
-        $this->memberQrLookup = '';
-        $this->selectedMemberId = null;
     }
 
     public function fulfill(int $orderId): void
@@ -102,25 +62,29 @@ class Orders extends Component
         $query = MarketplaceOrder::query()
             ->with(['user', 'orderItems.marketplaceItem', 'fulfilledByUser'])
             ->where('status', '!=', MarketplaceOrder::STATUS_CART)
+            ->whereHas('orderItems', function ($q) {
+                $q->where('marketplace_item_id', $this->item->id);
+            })
             ->orderByDesc('updated_at');
 
         if ($this->statusFilter !== 'all') {
             $query->where('status', $this->statusFilter);
         }
 
-        if ($this->selectedMemberId) {
-            $query->where('user_id', $this->selectedMemberId);
-        }
-
         $orders = $query->paginate(15);
 
-        $selectedMember = $this->selectedMemberId
-            ? User::query()->find($this->selectedMemberId)
-            : null;
+        $soldQuantity = $this->item->orderLineItems()
+            ->whereHas('order', function ($q) {
+                $q->whereIn('status', [
+                    MarketplaceOrder::STATUS_PENDING_PICKUP,
+                    MarketplaceOrder::STATUS_FULFILLED,
+                ]);
+            })
+            ->sum('quantity');
 
-        return view('livewire.marketplace.orders', [
+        return view('livewire.marketplace.inventory', [
             'orders' => $orders,
-            'selectedMember' => $selectedMember,
+            'soldQuantity' => (int) $soldQuantity,
         ])->layout('layouts.app');
     }
 }

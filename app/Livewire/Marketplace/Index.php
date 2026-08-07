@@ -55,9 +55,23 @@ class Index extends Component
         $this->showMessage = true;
     }
 
+    public function restore(int $id): void
+    {
+        abort_unless(auth()->user()?->can('marketplace.delete'), 403);
+
+        $item = MarketplaceItem::onlyTrashed()->findOrFail($id);
+        $item->restore();
+        session()->flash('message', 'Item restored successfully.');
+        $this->showMessage = true;
+    }
+
     public function render()
     {
         $query = MarketplaceItem::query()->with(['createdBy', 'category', 'locations']);
+
+        if ($this->statusFilter === 'deleted') {
+            $query->onlyTrashed();
+        }
 
         if ($this->search !== '') {
             $query->where(function ($q) {
@@ -69,8 +83,10 @@ class Index extends Component
             });
         }
 
-        if ($this->statusFilter !== 'all') {
-            $query->where('is_active', $this->statusFilter === 'active');
+        if ($this->statusFilter === 'active') {
+            $query->where('is_active', true);
+        } elseif ($this->statusFilter === 'inactive') {
+            $query->where('is_active', false);
         }
 
         $items = $query->orderByDesc('created_at')->paginate(12);

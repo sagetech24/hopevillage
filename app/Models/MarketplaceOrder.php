@@ -21,6 +21,8 @@ class MarketplaceOrder extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const STATUS_VOIDED = 'voided';
+
     protected $fillable = [
         'user_id',
         'status',
@@ -241,6 +243,53 @@ class MarketplaceOrder extends Model
                 'status' => self::STATUS_CANCELLED,
                 'fulfilled_by' => $admin->id,
                 'notes' => $notes,
+            ]);
+        });
+
+        $this->refresh();
+    }
+
+    /**
+     * Void a fulfilled order: restore stock, credit points back, mark as voided.
+     */
+    public function voidByAdmin(User $admin, ?string $notes = null): void
+    {
+        DB::transaction(function () use ($admin, $notes) {
+            $order = static::query()->whereKey($this->id)->lockForUpdate()->firstOrFail();
+
+            if ($order->status !== self::STATUS_FULFILLED) {
+                throw new \RuntimeException('Only fulfilled orders can be voided.');
+            }
+
+            $user = User::query()->whereKey($order->user_id)->lockForUpdate()->firstOrFail();
+            $refund = (int) $order->points_total;
+
+            foreach ($order->orderItems as $line) {
+                $item = MarketplaceItem::query()
+                    ->whereKey($line->marketplace_item_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($item && $item->stock !== null) {
+                    $item->increment('stock', $line->quantity);
+                }
+            }
+
+            if ($refund > 0) {
+                app(PointsService::class)->creditPointsWithinTransaction(
+                    $user,
+                    $refund,
+                    PointsService::ACTIVITY_MARKETPLACE_REFUND,
+                    'Refund for voided marketplace order #'.$order->id,
+                    null,
+                    null,
+                );
+            }
+
+            $order->update([
+                'status' => self::STATUS_VOIDED,
+                'fulfilled_by' => $admin->id,
+                'notes' => $notes ?? 'Voided by admin',
             ]);
         });
 

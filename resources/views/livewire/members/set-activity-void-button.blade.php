@@ -2,7 +2,7 @@
     @if(($memberActivity->metadata['status'] ?? null) !== 'void')
         <button
             title="Set as Void"
-            wire:confirm="Are you sure you want to void this activity? This action will reverse the points awarded to the member and void the activity."
+            wire:confirm="Are you sure you want to void this activity? Related points will be reversed and linked records updated."
             type="button"
             wire:click="setAsVoid"
             class="text-xs text-gray-600 hover:text-gray-800 bg-blue-100 hover:bg-blue-300 cursor-pointer border border-gray-300 px-2 py-1 rounded-full transition-colors"
