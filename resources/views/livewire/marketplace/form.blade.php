@@ -56,38 +56,90 @@
                             @error('description') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                         </div>
         
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="flex flex-col gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">{{ __('Points cost') }} *</label>
+                        <div class="flex flex-col gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="flex flex-col gap-2">
+                                    <label class="block text-sm font-medium text-gray-700">{{ __('Points') }} 
+                                        <span class="text-red-500">*</span>
+                                        
+                                    </label>
                                     <input type="number" min="1" wire:model="points_cost" class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
                                     @error('points_cost') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                                 </div>
-                                <div>
+                                <div class="flex flex-col gap-2">
+                                    <label class="block text-sm font-medium text-gray-700">{{ __('Amount Cost') }}</label>
+                                    <div class="relative">
+                                        <input type="number" min="0.20" step="0.01" placeholder="0.20" wire:model="amount_cost" class="mt-1 pl-12 w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
+                                        <div class="absolute left-3 top-1 bottom-0 flex items-center justify-center">
+                                            <span class="text-sm text-gray-500">
+                                                {{ __('SGD') }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <p class="text-xs text-gray-500">{{ __('Monetary cost of the item. Minimum SGD 0.20.') }}</p>
+                                    @error('amount_cost') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="flex flex-col gap-2">
                                     <label class="flex items-center gap-2">
                                         <input type="checkbox" wire:model.live="unlimited_stock" class="rounded border-gray-300 text-orange-600 focus:ring-orange-500">
                                         <span class="text-sm font-medium text-gray-700">{{ __('Unlimited stock') }}</span>
                                     </label>
                                     @if (! $unlimited_stock)
-                                        <input type="number" min="0" wire:model="stockInput" placeholder="{{ __('Quantity in stock') }}" class="mt-2 w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
+                                        <input type="number" min="0" wire:model="stockInput" placeholder="{{ __('Total quantity set for this item') }}" class="mt-2 w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
+                                        <p class="text-xs text-gray-500 mt-1">{{ __('Maximum quantity of the item in stock.') }}</p>
                                         @error('stockInput') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                                     @endif
                                 </div>
+                                <div class="flex flex-col gap-2">
+                                    <label class="flex items-center gap-2">
+                                        <input type="checkbox" wire:model.live="no_daily_limit" class="rounded border-gray-300 text-orange-600 focus:ring-orange-500">
+                                        <span class="text-sm font-medium text-gray-700">{{ __('No daily limit') }}</span>
+                                    </label>
+                                    @if (! $no_daily_limit)
+                                        <input type="number" min="1" wire:model="dailyLimitInput" placeholder="{{ __('Max quantity per member per day') }}" class="mt-2 w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
+                                        <p class="text-xs text-gray-500 mt-1">{{ __('A member who reaches this quantity must wait until tomorrow to redeem this item again.') }}</p>
+                                        @error('dailyLimitInput') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">
+                                {{ __('Category') }}
+                                <span class="text-red-500">*</span>
+                            </label>
+                            <select wire:model="marketplace_category_id" class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
+                                <option value="">{{ __('Select category') }}</option>
+                                @foreach ($categories as $category)
+                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('marketplace_category_id') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
+                            <input type="text" wire:model="new_category_name" placeholder="{{ __('Or add new category') }}" class="mt-2 w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
+                            @error('new_category_name') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">{{ __('Valid from') }}</label>
+                                <input type="datetime-local" wire:model="valid_from" class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
+                                @error('valid_from') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">{{ __('Category') }} *</label>
-                                <select wire:model="marketplace_category_id" class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
-                                    <option value="">{{ __('Select category') }}</option>
-                                    @foreach ($categories as $category)
-                                        <option value="{{ $category->id }}">{{ $category->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('marketplace_category_id') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
-                                <input type="text" wire:model="new_category_name" placeholder="{{ __('Or add new category') }}" class="mt-2 w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
-                                @error('new_category_name') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
+                                <label class="block text-sm font-medium text-gray-700">{{ __('Valid until') }}</label>
+                                <input type="datetime-local" wire:model="valid_until" class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
+                                @error('valid_until') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                             </div>
                         </div>
         
+                        <div>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" wire:model="is_active" class="rounded border-gray-300 text-orange-600 focus:ring-orange-500">
+                                <span class="text-sm font-medium text-gray-700">{{ __('Active (visible to members)') }}</span>
+                            </label>
+                        </div>
+
                         <div>
                             <label class="flex items-center gap-2">
                                 <input type="checkbox" wire:model.live="available_in_all_locations" class="rounded border-gray-300 text-orange-600 focus:ring-orange-500">
@@ -108,26 +160,6 @@
                                 @error('selectedLocations') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                             </div>
                         @endif
-        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">{{ __('Valid from') }}</label>
-                                <input type="datetime-local" wire:model="valid_from" class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
-                                @error('valid_from') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">{{ __('Valid until') }}</label>
-                                <input type="datetime-local" wire:model="valid_until" class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
-                                @error('valid_until') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
-                            </div>
-                        </div>
-        
-                        <div>
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" wire:model="is_active" class="rounded border-gray-300 text-orange-600 focus:ring-orange-500">
-                                <span class="text-sm font-medium text-gray-700">{{ __('Active (visible to members)') }}</span>
-                            </label>
-                        </div>
         
                         <div class="flex justify-end gap-3">
                             <a href="{{ route('admin.marketplace.index') }}" class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">{{ __('Cancel') }}</a>

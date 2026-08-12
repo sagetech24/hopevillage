@@ -78,8 +78,8 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 @forelse ($items as $item)
-                    <div class="bg-white rounded-xl shadow-md overflow-hidden">
-                        <div class="relative h-80 bg-gray-100 flex items-center justify-center overflow-hidden">
+                    <div class="bg-white rounded-xl shadow-md overflow-hidden flex flex-col h-full">
+                        <div class="relative h-80 bg-gray-100 flex items-center justify-center overflow-hidden shrink-0">
                             @if ($item->trashed())
                                 <span class="absolute top-2 right-2 shrink-0 text-xs bg-red-200 border border-red-400 text-red-800 px-2 py-0.5 rounded-full">{{ __('Deleted') }}</span>
                             @elseif ($item->is_active && $item->valid_until && $item->valid_until->isFuture())
@@ -101,38 +101,37 @@
                                 </p>
                             @endif
                         </div>
-                        <div class="p-4">
-                            <div class="flex justify-between items-start gap-2">
+                        <div class="p-4 flex flex-col flex-1">
+                            <div class="flex justify-between items-start gap-2 mb-2">
                                 <div class="min-w-0 flex-1">
                                     <h3 class="font-semibold text-gray-900 text-xl">{{ $item->name }}</h3>
                                     <p class="text-xs text-gray-500 my-1 line-clamp-2 italic capitalize">{{ $item->description }}</p>
                                 </div>
                             </div>
-                            <p class="flex items-center gap-1">
-                                <span class="text-orange-600 font-bold">{{ number_format($item->points_cost) }} {{ __('pts') }}</span>
+                            <p class="flex items-center flex-wrap">
+                                <span class="text-sm text-gray-500">Points: </span>
+                                <span class="text-orange-600 text-sm font-bold">{{ number_format($item->points_cost) }} {{ __('pts') }}</span>
                             </p>
-                            <p class="text-xs text-gray-500 mt-1">
+                            @if ($item->stock !== null)
+                                <p>
+                                    <span class="text-sm text-gray-500">{{ __('Remaining Qnty') }}: </span>
+                                    <span class="text-orange-600 text-sm font-bold">{{ number_format($item->remainingQuantity()) }}</span>
+                                </p>
+                            @endif
+                            @if ($item->daily_limit_quantity !== null)
+                                <p>
+                                    <span class="text-sm text-gray-500">{{ __('Daily Limit / User') }}: </span>
+                                    <span class="text-orange-600 text-sm font-bold">{{ number_format($item->daily_limit_quantity) }}</span>
+                                </p>
+                            @endif
+                            <p class="text-xs text-gray-500 mt-2 mb-4">
                                 @if ($item->category)
                                     <span class="inline-block bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full text-xs capitalize">{{ $item->category?->name }}</span>
                                 @else
                                     <span class="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs capitalize">{{ __('Uncategorized') }}</span>
                                 @endif
                             </p>
-                            {{-- <p class="text-xs text-gray-400 mt-2">
-                                @if ($item->stock === null)
-                                    {{ __('Unlimited stock') }}
-                                @else
-                                    {{ __('Stock') }}: {{ $item->stock }}
-                                @endif
-                            </p> --}}
-                            {{-- <p class="text-xs text-gray-400 mt-1">
-                                @if ($item->locations->isEmpty())
-                                    {{ __('Locations') }}: {{ __('All') }}
-                                @else
-                                    {{ __('Locations') }}: {{ $item->locations->pluck('name')->join(', ') }}
-                                @endif
-                            </p> --}}
-                            <div class="mt-8 flex flex-wrap gap-2">
+                            <div class="mt-auto flex flex-wrap gap-2 border-t border-gray-200 pt-2">
                                 @if ($item->trashed())
                                     @can('marketplace.delete')
                                         <button type="button" wire:click="restore({{ $item->id }})" class="text-xs bg-green-600 text-white px-3 py-1.5 rounded-full hover:bg-green-700 hover:text-green-100 transition-all duration-300">{{ __('Restore') }}</button>
@@ -178,9 +177,24 @@
                 @endforelse
             </div>
 
-            <div class="mt-8">
-                {{ $items->links() }}
-            </div>
+            @if ($items->total() > 0)
+                <div class="mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <p class="text-sm text-gray-600">
+                        {{ __('Showing') }}
+                        <span class="font-medium text-gray-900">{{ $items->firstItem() }}</span>
+                        {{ __('to') }}
+                        <span class="font-medium text-gray-900">{{ $items->lastItem() }}</span>
+                        {{ __('of') }}
+                        <span class="font-medium text-gray-900">{{ $items->total() }}</span>
+                        {{ __('items') }}
+                    </p>
+                    @if ($items->hasPages())
+                        <div>
+                            {{ $items->links() }}
+                        </div>
+                    @endif
+                </div>
+            @endif
         </div>
     </div>
 </div>

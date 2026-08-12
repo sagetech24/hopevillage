@@ -21,8 +21,10 @@ class MarketplaceItem extends Model implements HasMedia
         'marketplace_category_id',
         'description',
         'points_cost',
+        'amount_cost',
         'per_item_quantity',
         'stock',
+        'daily_limit_quantity',
         'is_active',
         'valid_from',
         'valid_until',
@@ -33,8 +35,10 @@ class MarketplaceItem extends Model implements HasMedia
     {
         return [
             'points_cost' => 'integer',
+            'amount_cost' => 'decimal:2',
             'per_item_quantity' => 'integer',
             'stock' => 'integer',
+            'daily_limit_quantity' => 'integer',
             'is_active' => 'boolean',
             'valid_from' => 'datetime',
             'valid_until' => 'datetime',
@@ -96,7 +100,20 @@ class MarketplaceItem extends Model implements HasMedia
     public function scopeInStock(Builder $query): Builder
     {
         return $query->where(function ($q) {
-            $q->whereNull('stock')->orWhere('stock', '>', 0);
+            $q->whereNull('stock')
+                ->orWhereRaw(
+                    'marketplace_items.stock > (
+                        select coalesce(sum(moi.quantity), 0)
+                        from marketplace_order_items moi
+                        inner join marketplace_orders mo on mo.id = moi.marketplace_order_id
+                        where moi.marketplace_item_id = marketplace_items.id
+                        and mo.status in (?, ?)
+                    )',
+                    [
+                        MarketplaceOrder::STATUS_PENDING_PICKUP,
+                        MarketplaceOrder::STATUS_FULFILLED,
+                    ]
+                );
         });
     }
 
@@ -132,7 +149,9 @@ class MarketplaceItem extends Model implements HasMedia
         if ($this->valid_until && $this->valid_until->isPast()) {
             return false;
         }
-        if ($this->stock !== null && $this->stock <= 0) {
+
+        $remaining = $this->availableQuantity();
+        if ($remaining !== null && $remaining <= 0) {
             return false;
         }
 
@@ -141,10 +160,137 @@ class MarketplaceItem extends Model implements HasMedia
 
     public function hasStockFor(int $quantity): bool
     {
-        if ($this->stock === null) {
+        $available = $this->availableQuantity();
+        if ($available === null) {
             return true;
         }
 
-        return $this->stock >= $quantity;
+        return $available >= $quantity;
+    }
+
+    /**
+     * Configured total quantity set on the item (null = unlimited).
+     */
+    public function setQuantity(): ?int
+    {
+        if ($this->stock === null) {
+            return null;
+        }
+
+        return (int) $this->stock;
+    }
+
+    /**
+     * Remaining quantity for display: set quantity minus fulfilled units.
+     */
+    public function remainingQuantity(): ?int
+    {
+        if ($this->stock === null) {
+            return null;
+        }
+
+        return max(0, (int) $this->stock - $this->fulfilledQuantityCount());
+    }
+
+    /**
+     * Quantity still available to sell (excludes pending pickup and fulfilled).
+     */
+    public function availableQuantity(): ?int
+    {
+        if ($this->stock === null) {
+            return null;
+        }
+
+        return max(
+            0,
+            (int) $this->stock - $this->pendingQuantityCount() - $this->fulfilledQuantityCount()
+        );
+    }
+
+    public function fulfilledQuantityCount(): int
+    {
+        if (array_key_exists('fulfilled_quantity', $this->attributes)) {
+            return (int) ($this->attributes['fulfilled_quantity'] ?? 0);
+        }
+
+        return (int) $this->orderLineItems()
+            ->whereHas('order', function (Builder $query) {
+                $query->where('status', MarketplaceOrder::STATUS_FULFILLED);
+            })
+            ->sum('quantity');
+    }
+
+    public function pendingQuantityCount(): int
+    {
+        if (array_key_exists('pending_quantity', $this->attributes)) {
+            return (int) ($this->attributes['pending_quantity'] ?? 0);
+        }
+
+        return (int) $this->orderLineItems()
+            ->whereHas('order', function (Builder $query) {
+                $query->where('status', MarketplaceOrder::STATUS_PENDING_PICKUP);
+            })
+            ->sum('quantity');
+    }
+
+    public function hasDailyLimit(): bool
+    {
+        return $this->daily_limit_quantity !== null && $this->daily_limit_quantity > 0;
+    }
+
+    public function quantityRedeemedTodayBy(int $userId): int
+    {
+        return (int) $this->orderLineItems()
+            ->whereHas('order', function (Builder $query) use ($userId) {
+                $query->where('user_id', $userId)
+                    ->whereIn('status', [
+                        MarketplaceOrder::STATUS_PENDING_PICKUP,
+                        MarketplaceOrder::STATUS_FULFILLED,
+                    ])
+                    ->whereBetween('submitted_at', [now()->startOfDay(), now()->endOfDay()]);
+            })
+            ->sum('quantity');
+    }
+
+    public function remainingDailyQuantityFor(int $userId): ?int
+    {
+        if (! $this->hasDailyLimit()) {
+            return null;
+        }
+
+        return max(0, (int) $this->daily_limit_quantity - $this->quantityRedeemedTodayBy($userId));
+    }
+
+    public function hasDailyCapacityFor(int $userId, int $quantity): bool
+    {
+        $remaining = $this->remainingDailyQuantityFor($userId);
+        if ($remaining === null) {
+            return true;
+        }
+
+        return $quantity <= $remaining;
+    }
+
+    public function dailyLimitExceededMessage(int $userId, int $quantity): ?string
+    {
+        if ($this->hasDailyCapacityFor($userId, $quantity)) {
+            return null;
+        }
+
+        $used = $this->quantityRedeemedTodayBy($userId);
+
+        if ($used >= (int) $this->daily_limit_quantity) {
+            return __('Daily limit reached for :item. This member can redeem up to :limit per day and has already redeemed :used today. Try again tomorrow.', [
+                'item' => $this->name,
+                'limit' => number_format((int) $this->daily_limit_quantity),
+                'used' => number_format($used),
+            ]);
+        }
+
+        return __('Daily limit for :item is :limit per member per day. This member can still redeem :remaining today.', [
+            'item' => $this->name,
+            'limit' => number_format((int) $this->daily_limit_quantity),
+            'remaining' => number_format((int) $this->remainingDailyQuantityFor($userId)),
+        ]);
     }
 }

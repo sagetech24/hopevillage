@@ -53,13 +53,33 @@
                                 <span class="font-medium text-orange-600">{{ number_format($item->points_cost) }}</span>
                             </span>
                             <span>
-                                <span class="text-gray-500">{{ __('Stock') }}:</span>
+                                <span class="text-gray-500">{{ __('Amount cost') }}:</span>
+                                <span class="font-medium">{{ __('SGD') }} {{ number_format((float) $item->amount_cost, 2) }}</span>
+                            </span>
+                            <span>
+                                <span class="text-gray-500">{{ __('Set quantity') }}:</span>
                                 <span class="font-medium">{{ $item->stock === null ? __('Unlimited') : number_format($item->stock) }}</span>
+                            </span>
+                            @if ($item->stock !== null)
+                                <span>
+                                    <span class="text-gray-500">{{ __('Remaining') }}:</span>
+                                    <span class="font-medium text-orange-600">{{ number_format($item->remainingQuantity()) }}</span>
+                                </span>
+                            @endif
+                            <span>
+                                <span class="text-gray-500">{{ __('Daily limit') }}:</span>
+                                <span class="font-medium">{{ $item->daily_limit_quantity === null ? __('None') : number_format($item->daily_limit_quantity) }}</span>
                             </span>
                             <span>
                                 <span class="text-gray-500">{{ __('Sold') }}:</span>
                                 <span class="font-medium">{{ number_format($soldQuantity) }}</span>
                             </span>
+                            @if ((float) $item->amount_cost > 0)
+                                <span>
+                                    <span class="text-gray-500">{{ __('Sold value') }}:</span>
+                                    <span class="font-medium">{{ __('SGD') }} {{ number_format($soldAmount, 2) }}</span>
+                                </span>
+                            @endif
                             <span>
                                 <span class="text-gray-500">{{ __('Category') }}:</span>
                                 <span class="font-medium capitalize">{{ $item->category?->name ?? __('Uncategorized') }}</span>

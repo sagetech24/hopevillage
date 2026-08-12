@@ -103,6 +103,14 @@ class Cashier extends Component
 
                     return;
                 }
+                if ($item->hasDailyLimit() && $newQty > (int) $item->daily_limit_quantity) {
+                    $this->dispatch('notify', type: 'error', message: __('Daily limit for :item is :limit per member per day.', [
+                        'item' => $item->name,
+                        'limit' => number_format((int) $item->daily_limit_quantity),
+                    ]));
+
+                    return;
+                }
                 $this->basket[$idx]['quantity'] = $newQty;
 
                 return;
@@ -136,6 +144,14 @@ class Cashier extends Component
             $newQty = (int) $line['quantity'] + 1;
             if (! $item->hasStockFor($newQty)) {
                 $this->dispatch('notify', type: 'error', message: __('Not enough stock.'));
+
+                return;
+            }
+            if ($item->hasDailyLimit() && $newQty > (int) $item->daily_limit_quantity) {
+                $this->dispatch('notify', type: 'error', message: __('Daily limit for :item is :limit per member per day.', [
+                    'item' => $item->name,
+                    'limit' => number_format((int) $item->daily_limit_quantity),
+                ]));
 
                 return;
             }
@@ -388,11 +404,26 @@ class Cashier extends Component
             ];
         }
 
+        $dailyLimitWarnings = [];
+        if ($this->resolvedMemberId) {
+            foreach ($this->pendingLines as $pl) {
+                $item = MarketplaceItem::query()->find($pl['marketplace_item_id']);
+                if (! $item) {
+                    continue;
+                }
+                $message = $item->dailyLimitExceededMessage((int) $this->resolvedMemberId, (int) $pl['quantity']);
+                if ($message) {
+                    $dailyLimitWarnings[] = $message;
+                }
+            }
+        }
+
         return view('livewire.marketplace.cashier', [
             'catalogItems' => $this->catalogItems,
             'basketRows' => $basketRows,
             'basketTotal' => $basketTotal,
             'pendingLabels' => $pendingLabels,
+            'dailyLimitWarnings' => $dailyLimitWarnings,
             'categories' => MarketplaceCategory::query()->where('is_active', true)->orderBy('name')->get(),
             'locations' => Location::query()->where('is_active', true)->orderBy('name')->get(),
             'resolvedMember' => $this->resolvedMemberId ? User::query()->find($this->resolvedMemberId) : null,

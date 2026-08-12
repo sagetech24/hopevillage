@@ -42,7 +42,7 @@
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <h3 class="font-semibold text-gray-900">{{ __('Product trends (fulfilled, last 30 days)') }}</h3>
-                        <p class="text-sm text-gray-600 mt-1">{{ __('Top products by fulfilled units and points redeemed.') }}</p>
+                        <p class="text-sm text-gray-600 mt-1">{{ __('Top products by fulfilled units, points redeemed, and amount cost.') }}</p>
                     </div>
                     @if ($productTrend['hasData'])
                         <div class="inline-flex rounded-lg border border-gray-200 overflow-hidden text-sm">
@@ -73,6 +73,10 @@
                         <div class="rounded-lg bg-gray-50 px-4 py-2">
                             <div class="text-xs font-medium text-gray-600 uppercase tracking-wide">{{ __('Points redeemed') }}</div>
                             <div class="text-lg font-semibold text-gray-900">{{ number_format($productTrend['totals']['points']) }}</div>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 px-4 py-2">
+                            <div class="text-xs font-medium text-gray-600 uppercase tracking-wide">{{ __('Amount cost') }}</div>
+                            <div class="text-lg font-semibold text-gray-900">{{ __('SGD') }} {{ number_format($productTrend['totals']['amount'], 2) }}</div>
                         </div>
                     </div>
 
@@ -138,6 +142,7 @@
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Quantity') }}</th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Points') }}</th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Amount') }}</th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Share') }}</th>
                                 </tr>
                             </thead>
@@ -148,6 +153,7 @@
                                         <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ $row['name'] }}</td>
                                         <td class="px-4 py-3 text-sm text-right text-gray-700">{{ number_format($row['quantity']) }}</td>
                                         <td class="px-4 py-3 text-sm text-right text-orange-600 font-medium">{{ number_format($row['points']) }}</td>
+                                        <td class="px-4 py-3 text-sm text-right text-gray-700">{{ __('SGD') }} {{ number_format($row['amount'], 2) }}</td>
                                         <td class="px-4 py-3 text-sm text-right text-gray-500">{{ number_format($row['share'], 1) }}%</td>
                                     </tr>
                                 @endforeach

@@ -26,6 +26,7 @@ class MarketplaceOrder extends Model
     protected $fillable = [
         'user_id',
         'status',
+        'submitted_at',
         'points_total',
         'fulfilled_at',
         'fulfilled_by',
@@ -36,6 +37,7 @@ class MarketplaceOrder extends Model
     {
         return [
             'points_total' => 'integer',
+            'submitted_at' => 'datetime',
             'fulfilled_at' => 'datetime',
         ];
     }
@@ -149,6 +151,11 @@ class MarketplaceOrder extends Model
                     throw new \RuntimeException('Insufficient stock for: '.$item->name);
                 }
 
+                $dailyLimitMessage = $item->dailyLimitExceededMessage((int) $order->user_id, (int) $line->quantity);
+                if ($dailyLimitMessage) {
+                    throw new \RuntimeException($dailyLimitMessage);
+                }
+
                 $line->update(['points_per_item' => $item->points_cost]);
                 $pointsTotal += $item->points_cost * $line->quantity;
             }
@@ -166,19 +173,9 @@ class MarketplaceOrder extends Model
                 null,
             );
 
-            foreach ($order->orderItems()->with('marketplaceItem')->get() as $line) {
-                $item = MarketplaceItem::query()
-                    ->whereKey($line->marketplace_item_id)
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($item->stock !== null) {
-                    $item->decrement('stock', $line->quantity);
-                }
-            }
-
             $order->update([
                 'status' => self::STATUS_PENDING_PICKUP,
+                'submitted_at' => now(),
                 'points_total' => $pointsTotal,
             ]);
         });
@@ -217,17 +214,6 @@ class MarketplaceOrder extends Model
             $user = User::query()->whereKey($order->user_id)->lockForUpdate()->firstOrFail();
             $refund = (int) $order->points_total;
 
-            foreach ($order->orderItems as $line) {
-                $item = MarketplaceItem::query()
-                    ->whereKey($line->marketplace_item_id)
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($item && $item->stock !== null) {
-                    $item->increment('stock', $line->quantity);
-                }
-            }
-
             if ($refund > 0) {
                 app(PointsService::class)->creditPointsWithinTransaction(
                     $user,
@@ -263,17 +249,6 @@ class MarketplaceOrder extends Model
 
             $user = User::query()->whereKey($order->user_id)->lockForUpdate()->firstOrFail();
             $refund = (int) $order->points_total;
-
-            foreach ($order->orderItems as $line) {
-                $item = MarketplaceItem::query()
-                    ->whereKey($line->marketplace_item_id)
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($item && $item->stock !== null) {
-                    $item->increment('stock', $line->quantity);
-                }
-            }
 
             if ($refund > 0) {
                 app(PointsService::class)->creditPointsWithinTransaction(
@@ -349,6 +324,11 @@ class MarketplaceOrder extends Model
                     throw new \RuntimeException('Insufficient stock for: '.$item->name);
                 }
 
+                $dailyLimitMessage = $item->dailyLimitExceededMessage((int) $member->id, $qty);
+                if ($dailyLimitMessage) {
+                    throw new \RuntimeException($dailyLimitMessage);
+                }
+
                 $pointsPer = (int) $item->points_cost;
                 $normalized[] = [
                     'item' => $item,
@@ -365,6 +345,7 @@ class MarketplaceOrder extends Model
             $order = static::query()->create([
                 'user_id' => $member->id,
                 'status' => self::STATUS_FULFILLED,
+                'submitted_at' => now(),
                 'points_total' => $pointsTotal,
                 'fulfilled_at' => now(),
                 'fulfilled_by' => $admin->id,
@@ -421,13 +402,6 @@ class MarketplaceOrder extends Model
                 null,
                 $memberActivity->id,
             );
-
-            foreach ($normalized as $row) {
-                $item = $row['item'];
-                if ($item->stock !== null) {
-                    $item->decrement('stock', $row['quantity']);
-                }
-            }
 
             return $order->fresh(['orderItems']);
         });

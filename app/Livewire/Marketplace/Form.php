@@ -20,6 +20,8 @@ class Form extends Component
 
     public int $points_cost = 0;
 
+    public $amount_cost = 0.20;
+
     public ?int $marketplace_category_id = null;
 
     public string $new_category_name = '';
@@ -28,7 +30,11 @@ class Form extends Component
 
     public string $stockInput = '';
 
-    public bool $unlimited_stock = true;
+    public bool $unlimited_stock = false;
+
+    public bool $no_daily_limit = false;
+
+    public string $dailyLimitInput = '';
 
     public bool $available_in_all_locations = true;
 
@@ -52,9 +58,11 @@ class Form extends Component
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'points_cost' => 'required|integer|min:1',
+            'amount_cost' => 'required|numeric|min:0.20',
             'marketplace_category_id' => 'nullable|exists:marketplace_categories,id',
             'new_category_name' => 'nullable|string|max:120',
             'stockInput' => 'nullable|integer|min:0',
+            'dailyLimitInput' => 'nullable|integer|min:1',
             'selectedLocations' => 'nullable|array',
             'selectedLocations.*' => 'exists:locations,id',
             'valid_from' => 'nullable|date',
@@ -76,6 +84,7 @@ class Form extends Component
             $this->name = $item->name;
             $this->description = (string) ($item->description ?? '');
             $this->points_cost = $item->points_cost;
+            $this->amount_cost = $item->amount_cost;
             $this->marketplace_category_id = $item->marketplace_category_id;
             if ($item->stock === null) {
                 $this->unlimited_stock = true;
@@ -83,6 +92,13 @@ class Form extends Component
             } else {
                 $this->unlimited_stock = false;
                 $this->stockInput = (string) $item->stock;
+            }
+            if ($item->daily_limit_quantity === null) {
+                $this->no_daily_limit = true;
+                $this->dailyLimitInput = '';
+            } else {
+                $this->no_daily_limit = false;
+                $this->dailyLimitInput = (string) $item->daily_limit_quantity;
             }
             $this->valid_from = $item->valid_from ? $item->valid_from->format('Y-m-d\TH:i') : '';
             $this->valid_until = $item->valid_until ? $item->valid_until->format('Y-m-d\TH:i') : '';
@@ -129,6 +145,11 @@ class Form extends Component
             $this->validate(['stockInput' => 'required|integer|min:0']);
             $stock = (int) $this->stockInput;
         }
+        $dailyLimit = null;
+        if (! $this->no_daily_limit) {
+            $this->validate(['dailyLimitInput' => 'required|integer|min:1']);
+            $dailyLimit = (int) $this->dailyLimitInput;
+        }
         if (! $this->available_in_all_locations) {
             $this->validate(['selectedLocations' => 'required|array|min:1']);
         }
@@ -138,8 +159,10 @@ class Form extends Component
             'marketplace_category_id' => $this->marketplace_category_id,
             'description' => $this->description ?: null,
             'points_cost' => $this->points_cost,
+            'amount_cost' => $this->amount_cost === '' || $this->amount_cost === null ? 0.20 : $this->amount_cost,
             'per_item_quantity' => 1,
             'stock' => $stock,
+            'daily_limit_quantity' => $dailyLimit,
             'valid_from' => $this->valid_from ? date('Y-m-d H:i:s', strtotime($this->valid_from)) : null,
             'valid_until' => $this->valid_until ? date('Y-m-d H:i:s', strtotime($this->valid_until)) : null,
             'is_active' => (bool) $this->is_active,

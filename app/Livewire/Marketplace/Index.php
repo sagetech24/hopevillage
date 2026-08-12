@@ -3,6 +3,7 @@
 namespace App\Livewire\Marketplace;
 
 use App\Models\MarketplaceItem;
+use App\Models\MarketplaceOrder;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -67,7 +68,18 @@ class Index extends Component
 
     public function render()
     {
-        $query = MarketplaceItem::query()->with(['createdBy', 'category', 'locations']);
+        $query = MarketplaceItem::query()
+            ->with(['createdBy', 'category', 'locations'])
+            ->withSum(['orderLineItems as fulfilled_quantity' => function ($q) {
+                $q->whereHas('order', function ($orderQuery) {
+                    $orderQuery->where('status', MarketplaceOrder::STATUS_FULFILLED);
+                });
+            }], 'quantity')
+            ->withSum(['orderLineItems as pending_quantity' => function ($q) {
+                $q->whereHas('order', function ($orderQuery) {
+                    $orderQuery->where('status', MarketplaceOrder::STATUS_PENDING_PICKUP);
+                });
+            }], 'quantity');
 
         if ($this->statusFilter === 'deleted') {
             $query->onlyTrashed();
@@ -89,7 +101,7 @@ class Index extends Component
             $query->where('is_active', false);
         }
 
-        $items = $query->orderByDesc('created_at')->paginate(12);
+        $items = $query->orderByDesc('created_at')->paginate(9);
 
         return view('livewire.marketplace.index', [
             'items' => $items,

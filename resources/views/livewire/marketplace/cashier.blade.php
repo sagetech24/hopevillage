@@ -44,6 +44,13 @@
                             <p class="text-sm font-semibold text-green-700 capitalize font-mono">{{ __('Points balance') }}: {{ number_format($resolvedMember->total_points) }}</p>
                         </div>
                     @endif
+                    @if (! empty($dailyLimitWarnings))
+                        <div class="space-y-1 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                            @foreach ($dailyLimitWarnings as $warning)
+                                <p class="text-sm text-red-700">{{ $warning }}</p>
+                            @endforeach
+                        </div>
+                    @endif
 
 
 
@@ -103,7 +110,7 @@
                     <br />
                     <br />
                     <div class="flex flex-wrap gap-2">
-                        <button type="button" wire:click="confirmPayment" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">{{ __('Confirm Payment') }}</button>
+                        <button type="button" wire:click="confirmPayment" @if(! empty($dailyLimitWarnings)) disabled @endif class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed">{{ __('Confirm Payment') }}</button>
                         <button type="button" wire:click="cancelPayment" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ __('Back to basket') }}</button>
                     </div>
                 </div>
@@ -139,6 +146,9 @@
                                     <div class="flex-1 min-w-0">
                                         <p class="text-sm font-medium text-gray-900 truncate">{{ $item->per_item_quantity }} x {{ $item->name }}</p>
                                         <p class="text-xs text-orange-600 font-semibold">{{ number_format($item->points_cost) }} {{ __('pts') }}</p>
+                                        @if ($item->hasDailyLimit())
+                                            <p class="text-xs text-gray-500">{{ __('Daily limit') }}: {{ number_format((int) $item->daily_limit_quantity) }}</p>
+                                        @endif
                                     </div>
                                     <button
                                         type="button"

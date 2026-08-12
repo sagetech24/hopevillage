@@ -54,6 +54,13 @@ class Cart extends Component
             return;
         }
 
+        $dailyLimitMessage = $item->dailyLimitExceededMessage((int) $cart->user_id, $newQty);
+        if ($dailyLimitMessage) {
+            $this->dispatch('notify', type: 'error', message: $dailyLimitMessage);
+
+            return;
+        }
+
         $line->update([
             'quantity' => $newQty,
             'points_per_item' => $item->points_cost,

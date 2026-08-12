@@ -59,6 +59,20 @@ class Inventory extends Component
 
     public function render()
     {
+        $this->item = MarketplaceItem::withTrashed()
+            ->with(['category', 'locations'])
+            ->withSum(['orderLineItems as fulfilled_quantity' => function ($q) {
+                $q->whereHas('order', function ($orderQuery) {
+                    $orderQuery->where('status', MarketplaceOrder::STATUS_FULFILLED);
+                });
+            }], 'quantity')
+            ->withSum(['orderLineItems as pending_quantity' => function ($q) {
+                $q->whereHas('order', function ($orderQuery) {
+                    $orderQuery->where('status', MarketplaceOrder::STATUS_PENDING_PICKUP);
+                });
+            }], 'quantity')
+            ->findOrFail($this->item->id);
+
         $query = MarketplaceOrder::query()
             ->with(['user', 'orderItems.marketplaceItem', 'fulfilledByUser'])
             ->where('status', '!=', MarketplaceOrder::STATUS_CART)
@@ -73,18 +87,13 @@ class Inventory extends Component
 
         $orders = $query->paginate(15);
 
-        $soldQuantity = $this->item->orderLineItems()
-            ->whereHas('order', function ($q) {
-                $q->whereIn('status', [
-                    MarketplaceOrder::STATUS_PENDING_PICKUP,
-                    MarketplaceOrder::STATUS_FULFILLED,
-                ]);
-            })
-            ->sum('quantity');
+        $soldQuantity = $this->item->fulfilledQuantityCount() + $this->item->pendingQuantityCount();
+        $soldAmount = (float) $this->item->amount_cost * $this->item->fulfilledQuantityCount();
 
         return view('livewire.marketplace.inventory', [
             'orders' => $orders,
             'soldQuantity' => (int) $soldQuantity,
+            'soldAmount' => $soldAmount,
         ])->layout('layouts.app');
     }
 }

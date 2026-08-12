@@ -157,8 +157,8 @@ class Orders extends Component
      * @return array{
      *     labels: list<string>,
      *     datasets: list<array{label: string, data: list<int|float>, borderColor: string, backgroundColor: string, tension: float, fill: bool}>,
-     *     ranking: list<array{name: string, quantity: int, points: int, share: float}>,
-     *     totals: array{quantity: int, points: int},
+     *     ranking: list<array{name: string, quantity: int, points: int, amount: float, share: float}>,
+     *     totals: array{quantity: int, points: int, amount: float},
      *     hasData: bool
      * }
      */
@@ -171,12 +171,13 @@ class Orders extends Component
             'labels' => $this->trendDayLabels(),
             'datasets' => [],
             'ranking' => [],
-            'totals' => ['quantity' => 0, 'points' => 0],
+            'totals' => ['quantity' => 0, 'points' => 0, 'amount' => 0.0],
             'hasData' => false,
         ];
 
         $baseQuery = MarketplaceOrderItem::query()
             ->join('marketplace_orders', 'marketplace_order_items.marketplace_order_id', '=', 'marketplace_orders.id')
+            ->join('marketplace_items', 'marketplace_order_items.marketplace_item_id', '=', 'marketplace_items.id')
             ->where('marketplace_orders.status', MarketplaceOrder::STATUS_FULFILLED)
             ->whereNotNull('marketplace_orders.fulfilled_at')
             ->whereBetween('marketplace_orders.fulfilled_at', [$startDate, $endDate]);
@@ -184,10 +185,12 @@ class Orders extends Component
         $totalsRow = (clone $baseQuery)
             ->selectRaw('COALESCE(SUM(marketplace_order_items.quantity), 0) as total_quantity')
             ->selectRaw('COALESCE(SUM(marketplace_order_items.quantity * marketplace_order_items.points_per_item), 0) as total_points')
+            ->selectRaw('COALESCE(SUM(marketplace_order_items.quantity * marketplace_items.amount_cost), 0) as total_amount')
             ->first();
 
         $totalQuantity = (int) ($totalsRow->total_quantity ?? 0);
         $totalPoints = (int) ($totalsRow->total_points ?? 0);
+        $totalAmount = (float) ($totalsRow->total_amount ?? 0);
 
         if ($totalQuantity === 0) {
             return $empty;
@@ -197,6 +200,7 @@ class Orders extends Component
             ->selectRaw('marketplace_order_items.marketplace_item_id')
             ->selectRaw('SUM(marketplace_order_items.quantity) as total_quantity')
             ->selectRaw('SUM(marketplace_order_items.quantity * marketplace_order_items.points_per_item) as total_points')
+            ->selectRaw('SUM(marketplace_order_items.quantity * marketplace_items.amount_cost) as total_amount')
             ->groupBy('marketplace_order_items.marketplace_item_id')
             ->orderByDesc('total_quantity')
             ->get();
@@ -215,6 +219,7 @@ class Orders extends Component
                     'name' => $itemNames[$row->marketplace_item_id] ?? __('Item removed'),
                     'quantity' => $quantity,
                     'points' => (int) $row->total_points,
+                    'amount' => (float) $row->total_amount,
                     'share' => $totalQuantity > 0
                         ? round(($quantity / $totalQuantity) * 100, 1)
                         : 0.0,
@@ -274,6 +279,7 @@ class Orders extends Component
             'totals' => [
                 'quantity' => $totalQuantity,
                 'points' => $totalPoints,
+                'amount' => $totalAmount,
             ],
             'hasData' => true,
         ];
