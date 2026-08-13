@@ -1,6 +1,6 @@
 <div>
     <x-slot name="header">
-        <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 flex flex-wrap justify-between items-center gap-3">
+        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8 flex flex-wrap justify-between items-center gap-3">
             <div class="flex justify-between w-full items-center gap-3">
                 @can('marketplace.edit')
                     <a href="{{ route('admin.marketplace.cashier') }}" class="text-white bg-green-500 rounded-full px-3 py-1 font-medium hover:bg-green-600 text-sm">{{ __('Cashier Checkout') }}</a>
@@ -13,7 +13,7 @@
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8 space-y-6">
             <div class="bg-white shadow-md rounded-lg p-6 space-y-4">
                 <h3 class="font-semibold text-gray-900">{{ __('Find member by QR code') }}</h3>
                 <p class="text-sm text-gray-600">{{ __('For counter sales, use Marketplace Cashier (basket → member QR → points). This page lists orders: use QR below to filter by member when confirming older “pick up” orders still in pending status.') }}</p>
@@ -138,23 +138,31 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Rank') }}</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8">{{ __('Rank') }}</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Quantity') }}</th>
-                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Points') }}</th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Point Value') }}</th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Amount') }}</th>
-                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Share') }}</th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Total Cost') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 @foreach ($productTrend['ranking'] as $index => $row)
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-4 py-3 text-sm text-gray-500">{{ $index + 1 }}</td>
-                                        <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ $row['name'] }}</td>
+                                        <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                                            @if ($row['id'])
+                                                <a href="{{ route('admin.marketplace.inventory', $row['id']) }}" class="text-orange-600 hover:text-orange-700 hover:underline">
+                                                    {{ $row['name'] }}
+                                                </a>
+                                            @else
+                                                {{ $row['name'] }}
+                                            @endif
+                                        </td>
                                         <td class="px-4 py-3 text-sm text-right text-gray-700">{{ number_format($row['quantity']) }}</td>
                                         <td class="px-4 py-3 text-sm text-right text-orange-600 font-medium">{{ number_format($row['points']) }}</td>
                                         <td class="px-4 py-3 text-sm text-right text-gray-700">{{ __('SGD') }} {{ number_format($row['amount'], 2) }}</td>
-                                        <td class="px-4 py-3 text-sm text-right text-gray-500">{{ number_format($row['share'], 1) }}%</td>
+                                        <td class="px-4 py-3 text-sm text-right text-gray-700">{{ __('SGD') }} {{ number_format($row['total_cost'], 2) }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>

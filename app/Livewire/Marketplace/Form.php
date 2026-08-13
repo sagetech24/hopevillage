@@ -20,7 +20,7 @@ class Form extends Component
 
     public int $points_cost = 0;
 
-    public $amount_cost = 0.20;
+    public $amount_cost = 0.00;
 
     public ?int $marketplace_category_id = null;
 
@@ -31,6 +31,8 @@ class Form extends Component
     public string $stockInput = '';
 
     public bool $unlimited_stock = false;
+
+    public bool $compute_points_cost = false;
 
     public bool $no_daily_limit = false;
 
@@ -52,16 +54,20 @@ class Form extends Component
 
     public bool $showMessage = false;
 
+    public bool $confirmingZeroPoints = false;
+
     protected function rules(): array
     {
         return [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'points_cost' => 'required|integer|min:1',
-            'amount_cost' => 'required|numeric|min:0.20',
+            'points_cost' => 'required|integer|min:0',
+            'amount_cost' => 'required|numeric|min:0',
             'marketplace_category_id' => 'nullable|exists:marketplace_categories,id',
             'new_category_name' => 'nullable|string|max:120',
             'stockInput' => 'nullable|integer|min:0',
+            'compute_points_cost' => 'boolean',
+            'unlimited_stock' => 'boolean',
             'dailyLimitInput' => 'nullable|integer|min:1',
             'selectedLocations' => 'nullable|array',
             'selectedLocations.*' => 'exists:locations,id',
@@ -113,10 +119,73 @@ class Form extends Component
 
     public function updated($propertyName): void
     {
-        $this->validateOnly($propertyName);
+        if (! in_array($propertyName, ['confirmingZeroPoints', 'compute_points_cost', 'unlimited_stock'], true)) {
+            $this->validateOnly($propertyName);
+        }
+
+        if ($propertyName === 'unlimited_stock' && $this->unlimited_stock) {
+            $this->stockInput = '0';
+            $this->resetErrorBag('stockInput');
+            $this->compute_points_cost = false;
+        }
+
+        if (in_array($propertyName, ['amount_cost', 'stockInput', 'compute_points_cost', 'unlimited_stock'], true)) {
+            $this->applyComputedPointsCost();
+        }
+    }
+
+    protected function applyComputedPointsCost(): void
+    {
+        if (! $this->compute_points_cost || $this->unlimited_stock) {
+            return;
+        }
+
+        $computed = $this->computedPointsCost();
+        if ($computed === null) {
+            return;
+        }
+
+        $this->points_cost = $computed;
+        $this->resetErrorBag('points_cost');
+    }
+
+    protected function computedPointsCost(): ?int
+    {
+        if ($this->stockInput === '' || $this->stockInput === null) {
+            return null;
+        }
+
+        if ($this->amount_cost === '' || $this->amount_cost === null) {
+            return null;
+        }
+
+        if (! is_numeric($this->stockInput) || ! is_numeric($this->amount_cost)) {
+            return null;
+        }
+
+        $stock = (int) $this->stockInput;
+        $amount = (float) $this->amount_cost;
+
+        if ($stock < 0 || $amount < 0) {
+            return null;
+        }
+
+        return (int) round($amount * $stock);
     }
 
     public function save(): mixed
+    {
+        return $this->saveItem(requireZeroPointsConfirmation: true);
+    }
+
+    public function confirmZeroPointsAndSave(): mixed
+    {
+        $this->confirmingZeroPoints = false;
+
+        return $this->saveItem(requireZeroPointsConfirmation: false);
+    }
+
+    protected function saveItem(bool $requireZeroPointsConfirmation): mixed
     {
         abort_unless(
             $this->itemId
@@ -154,12 +223,20 @@ class Form extends Component
             $this->validate(['selectedLocations' => 'required|array|min:1']);
         }
 
+        $this->applyComputedPointsCost();
+
+        if ($requireZeroPointsConfirmation && (int) $this->points_cost === 0) {
+            $this->confirmingZeroPoints = true;
+
+            return null;
+        }
+
         $data = [
             'name' => $this->name,
             'marketplace_category_id' => $this->marketplace_category_id,
             'description' => $this->description ?: null,
             'points_cost' => $this->points_cost,
-            'amount_cost' => $this->amount_cost === '' || $this->amount_cost === null ? 0.20 : $this->amount_cost,
+            'amount_cost' => $this->amount_cost === '' || $this->amount_cost === null ? 0.00 : $this->amount_cost,
             'per_item_quantity' => 1,
             'stock' => $stock,
             'daily_limit_quantity' => $dailyLimit,

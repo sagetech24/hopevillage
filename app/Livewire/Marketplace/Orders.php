@@ -157,7 +157,7 @@ class Orders extends Component
      * @return array{
      *     labels: list<string>,
      *     datasets: list<array{label: string, data: list<int|float>, borderColor: string, backgroundColor: string, tension: float, fill: bool}>,
-     *     ranking: list<array{name: string, quantity: int, points: int, amount: float, share: float}>,
+     *     ranking: list<array{id: int|null, name: string, quantity: int, points: int, amount: float, total_cost: float}>,
      *     totals: array{quantity: int, points: int, amount: float},
      *     hasData: bool
      * }
@@ -206,23 +206,26 @@ class Orders extends Component
             ->get();
 
         $itemIds = $productTotals->pluck('marketplace_item_id')->all();
-        $itemNames = MarketplaceItem::withTrashed()
+        $items = MarketplaceItem::withTrashed()
             ->whereIn('id', $itemIds)
-            ->pluck('name', 'id');
+            ->get(['id', 'name', 'amount_cost'])
+            ->keyBy('id');
+        $itemNames = $items->pluck('name', 'id');
 
         $ranking = $productTotals
             ->take(self::RANKING_TOP_N)
-            ->map(function ($row) use ($itemNames, $totalQuantity) {
+            ->map(function ($row) use ($items) {
                 $quantity = (int) $row->total_quantity;
+                $item = $items->get($row->marketplace_item_id);
+                $unitAmount = (float) ($item?->amount_cost ?? 0);
 
                 return [
-                    'name' => $itemNames[$row->marketplace_item_id] ?? __('Item removed'),
+                    'id' => $item?->id,
+                    'name' => $item?->name ?? __('Item removed'),
                     'quantity' => $quantity,
                     'points' => (int) $row->total_points,
-                    'amount' => (float) $row->total_amount,
-                    'share' => $totalQuantity > 0
-                        ? round(($quantity / $totalQuantity) * 100, 1)
-                        : 0.0,
+                    'amount' => $unitAmount,
+                    'total_cost' => round($quantity * $unitAmount, 2),
                 ];
             })
             ->values()
