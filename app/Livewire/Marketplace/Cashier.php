@@ -7,6 +7,7 @@ use App\Models\MarketplaceCategory;
 use App\Models\MarketplaceItem;
 use App\Models\MarketplaceOrder;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Livewire\Component;
 
@@ -38,13 +39,28 @@ class Cashier extends Component
 
     public ?int $resolvedMemberId = null;
 
+    public ?string $lastSaleMessage = null;
+
+    public ?string $lastScannedQr = null;
+
+    public ?int $lastScannedAt = null;
+
     protected $listeners = [
         'qr-code-scanned' => 'onQrCodeScanned',
     ];
 
+    private const SCAN_COOLDOWN_SECONDS = 2;
+
     public function mount(): void
     {
         abort_unless(auth()->user()?->can('marketplace.edit'), 403);
+
+        $this->restoreCashierState();
+    }
+
+    public function dehydrate(): void
+    {
+        $this->persistCashierState();
     }
 
     public function onQrCodeScanned($value = null): void
@@ -58,8 +74,25 @@ class Cashier extends Component
         if (is_array($value)) {
             $value = $value[0] ?? reset($value);
         }
-        $this->memberQrInput = trim((string) $value);
+
+        $code = trim((string) $value);
+        if ($code === '') {
+            return;
+        }
+
+        if ($this->shouldIgnoreScan($code)) {
+            return;
+        }
+
+        $this->rememberScan($code);
+        $this->memberQrInput = $code;
         $this->lookupMember();
+
+        if (! $this->resolvedMemberId) {
+            return;
+        }
+
+        $this->chargeResolvedMember();
     }
 
     public function lookupMember(): void
@@ -253,16 +286,22 @@ class Cashier extends Component
         $this->awaitingMemberPayment = true;
         $this->memberQrInput = '';
         $this->resolvedMemberId = null;
+        $this->lastSaleMessage = null;
+        $this->lastScannedQr = null;
+        $this->lastScannedAt = null;
     }
 
     public function cancelPayment(): void
     {
+        $this->dispatch('closeQrScanner');
+
         if (! $this->awaitingMemberPayment || $this->pendingLines === []) {
             $this->awaitingMemberPayment = false;
             $this->pendingLines = [];
             $this->pendingPointsTotal = 0;
             $this->memberQrInput = '';
             $this->resolvedMemberId = null;
+            $this->lastSaleMessage = null;
 
             return;
         }
@@ -293,48 +332,14 @@ class Cashier extends Component
         $this->pendingPointsTotal = 0;
         $this->memberQrInput = '';
         $this->resolvedMemberId = null;
+        $this->lastSaleMessage = null;
+        $this->lastScannedQr = null;
+        $this->lastScannedAt = null;
     }
 
     public function confirmPayment(): void
     {
-        if (! $this->awaitingMemberPayment || $this->pendingLines === []) {
-            $this->dispatch('notify', type: 'error', message: __('Nothing to pay for.'));
-
-            return;
-        }
-
-        if (! $this->resolvedMemberId) {
-            $this->dispatch('notify', type: 'error', message: __('Look up or scan the member QR code first.'));
-
-            return;
-        }
-
-        $member = User::query()->find($this->resolvedMemberId);
-        if (! $member) {
-            $this->dispatch('notify', type: 'error', message: __('Member not found.'));
-
-            return;
-        }
-
-        try {
-            MarketplaceOrder::recordCashierSale(
-                $member,
-                auth()->user(),
-                $this->pendingLines,
-                null,
-                (int) $this->catalogLocation > 0 ? (int) $this->catalogLocation : null,
-            );
-            $this->dispatch('notify', type: 'success', message: __('Sale completed. Points deducted.'));
-            $this->awaitingMemberPayment = false;
-            $this->pendingLines = [];
-            $this->pendingPointsTotal = 0;
-            $this->memberQrInput = '';
-            $this->resolvedMemberId = null;
-            session()->flash('message', __('Points payment successful.'));
-            session()->flash('message_type', 'success');
-        } catch (\Throwable $e) {
-            $this->dispatch('notify', type: 'error', message: $e->getMessage());
-        }
+        $this->chargeResolvedMember();
     }
 
     public function clearBasket(): void
@@ -428,5 +433,192 @@ class Cashier extends Component
             'locations' => Location::query()->where('is_active', true)->orderBy('name')->get(),
             'resolvedMember' => $this->resolvedMemberId ? User::query()->find($this->resolvedMemberId) : null,
         ])->layout('layouts.app');
+    }
+
+    protected function chargeResolvedMember(): void
+    {
+        if (! $this->awaitingMemberPayment || $this->pendingLines === []) {
+            $this->dispatch('notify', type: 'error', message: __('Nothing to pay for.'));
+
+            return;
+        }
+
+        if (! $this->resolvedMemberId) {
+            $this->dispatch('notify', type: 'error', message: __('Look up or scan the member QR code first.'));
+
+            return;
+        }
+
+        $member = User::query()->find($this->resolvedMemberId);
+        if (! $member) {
+            $this->dispatch('notify', type: 'error', message: __('Member not found.'));
+            $this->clearResolvedMember();
+
+            return;
+        }
+
+        $lock = Cache::lock('marketplace-cashier-charge-'.(auth()->id() ?? 0), 8);
+        if (! $lock->get()) {
+            return;
+        }
+
+        try {
+            $chargedPoints = $this->pendingPointsTotal;
+            MarketplaceOrder::recordCashierSale(
+                $member,
+                auth()->user(),
+                $this->pendingLines,
+                null,
+                (int) $this->catalogLocation > 0 ? (int) $this->catalogLocation : null,
+            );
+
+            $this->recalculatePendingPointsTotal();
+            $this->lastSaleMessage = __('Charged :name — :points pts. Scan the next member.', [
+                'name' => $member->name,
+                'points' => number_format($chargedPoints),
+            ]);
+            $this->dispatch('notify', type: 'success', message: $this->lastSaleMessage);
+            $this->clearResolvedMember();
+        } catch (\Throwable $e) {
+            $this->dispatch('notify', type: 'error', message: $e->getMessage());
+            $this->clearResolvedMember();
+        } finally {
+            $lock->release();
+        }
+    }
+
+    protected function clearResolvedMember(): void
+    {
+        $this->memberQrInput = '';
+        $this->resolvedMemberId = null;
+    }
+
+    protected function rememberScan(string $code): void
+    {
+        $this->lastScannedQr = $code;
+        $this->lastScannedAt = now()->timestamp;
+    }
+
+    protected function shouldIgnoreScan(string $code): bool
+    {
+        if ($this->lastScannedQr !== $code || $this->lastScannedAt === null) {
+            return false;
+        }
+
+        return (now()->timestamp - $this->lastScannedAt) < self::SCAN_COOLDOWN_SECONDS;
+    }
+
+    protected function cashierSessionKey(): string
+    {
+        return 'marketplace.cashier.'.(auth()->id() ?? 0);
+    }
+
+    protected function persistCashierState(): void
+    {
+        if (! auth()->id()) {
+            return;
+        }
+
+        session()->put($this->cashierSessionKey(), [
+            'basket' => $this->basket,
+            'pendingLines' => $this->pendingLines,
+            'pendingPointsTotal' => $this->pendingPointsTotal,
+            'awaitingMemberPayment' => $this->awaitingMemberPayment,
+        ]);
+    }
+
+    protected function restoreCashierState(): void
+    {
+        $payload = session()->get($this->cashierSessionKey());
+        if (! is_array($payload)) {
+            return;
+        }
+
+        $this->basket = $this->sanitizeBasket(is_array($payload['basket'] ?? null) ? $payload['basket'] : []);
+        [$this->pendingLines, $this->pendingPointsTotal] = $this->sanitizePendingLines(
+            is_array($payload['pendingLines'] ?? null) ? $payload['pendingLines'] : []
+        );
+
+        $this->awaitingMemberPayment = (bool) ($payload['awaitingMemberPayment'] ?? false) && $this->pendingLines !== [];
+        if (! $this->awaitingMemberPayment) {
+            $this->pendingLines = [];
+            $this->pendingPointsTotal = 0;
+        }
+
+        $this->clearResolvedMember();
+    }
+
+    /**
+     * @param  array<int, mixed>  $basket
+     * @return array<int, array{id: string, marketplace_item_id: int, quantity: int, selected: bool}>
+     */
+    protected function sanitizeBasket(array $basket): array
+    {
+        $clean = [];
+        foreach ($basket as $line) {
+            if (! is_array($line)) {
+                continue;
+            }
+            $itemId = (int) ($line['marketplace_item_id'] ?? 0);
+            $qty = (int) ($line['quantity'] ?? 0);
+            if ($itemId <= 0 || $qty <= 0) {
+                continue;
+            }
+            if (! MarketplaceItem::query()->whereKey($itemId)->exists()) {
+                continue;
+            }
+            $clean[] = [
+                'id' => (string) ($line['id'] ?? Str::uuid()),
+                'marketplace_item_id' => $itemId,
+                'quantity' => $qty,
+                'selected' => ! empty($line['selected']),
+            ];
+        }
+
+        return $clean;
+    }
+
+    /**
+     * @param  array<int, mixed>  $lines
+     * @return array{0: array<int, array{marketplace_item_id: int, quantity: int}>, 1: int}
+     */
+    protected function sanitizePendingLines(array $lines): array
+    {
+        $valid = [];
+        $total = 0;
+        foreach ($lines as $pl) {
+            if (! is_array($pl)) {
+                continue;
+            }
+            $itemId = (int) ($pl['marketplace_item_id'] ?? 0);
+            $qty = (int) ($pl['quantity'] ?? 0);
+            if ($itemId <= 0 || $qty <= 0) {
+                continue;
+            }
+            $item = MarketplaceItem::query()->find($itemId);
+            if (! $item || ! $item->isAvailableForPurchase()) {
+                continue;
+            }
+            $valid[] = [
+                'marketplace_item_id' => $itemId,
+                'quantity' => $qty,
+            ];
+            $total += (int) $item->points_cost * $qty;
+        }
+
+        return [$valid, $total];
+    }
+
+    protected function recalculatePendingPointsTotal(): void
+    {
+        $total = 0;
+        foreach ($this->pendingLines as $pl) {
+            $item = MarketplaceItem::query()->find($pl['marketplace_item_id']);
+            if (! $item) {
+                continue;
+            }
+            $total += (int) $item->points_cost * (int) $pl['quantity'];
+        }
+        $this->pendingPointsTotal = $total;
     }
 }

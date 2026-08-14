@@ -5,6 +5,7 @@
             open: @entangle('open').live,
             scanError: @entangle('scanError').live,
             scanResult: @entangle('scanResult').live,
+            keepOpen: @entangle('keepOpen').live,
             stream: null,
             detector: null,
             scanTimer: null,
@@ -99,14 +100,7 @@
                      const codes = await this.detector.detect(this.$refs.qrVideo);
                      if (codes && codes.length) {
                          const result = codes[0].rawValue || 'Scanned';
-                         this.scanResult = result;
-                         this.stopScan();
-                         // Close scanner modal immediately
-                         $wire.close();
-                         // Show result modal after brief delay
-                         setTimeout(() => {
-                             $wire.handleScanResult(result);
-                         }, 500);
+                         this.handleDetectedQr(result);
                      }
                  } catch (e) {
                      // Ignore transient detection errors
@@ -125,17 +119,29 @@
                      
                      if (code) {
                          const result = code.data || 'Scanned';
-                         this.scanResult = result;
-                         this.stopScan();
-                         // Close scanner modal immediately
-                         $wire.close();
-                         // Show result modal after brief delay
-                         setTimeout(() => {
-                             $wire.handleScanResult(result);
-                         }, 500);
+                         this.handleDetectedQr(result);
                      }
                  }
              },
+            handleDetectedQr(result) {
+                this.scanResult = result;
+                this.stopScan();
+                if (this.keepOpen) {
+                    $wire.handleScanResult(result);
+                    setTimeout(() => {
+                        this.scanResult = null;
+                        $wire.set('scanResult', null);
+                        if (this.open && this.keepOpen) {
+                            this.startScan();
+                        }
+                    }, 1500);
+                    return;
+                }
+                $wire.close();
+                setTimeout(() => {
+                    $wire.handleScanResult(result);
+                }, 500);
+            },
             stopScan() {
                 if (this.scanTimer) {
                     clearInterval(this.scanTimer);
@@ -180,6 +186,8 @@
             }
         }"
         @openQrScanner.window="$wire.open()"
+        @openQrScannerKeepOpen.window="$wire.openKeepOpen()"
+        @closeQrScanner.window="$wire.close()"
         x-show="open"
         x-transition:enter="ease-out duration-300"
         x-transition:enter-start="opacity-0"

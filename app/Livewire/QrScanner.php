@@ -35,15 +35,29 @@ class QrScanner extends Component
     public $selectedQrType = null; // 'location', 'event', 'voucher', or null
     public $selectedQrCode = null;
     public $autoClose = true; // Auto close modal after successful scan
+    public bool $keepOpen = false;
     public $title = 'Scan QR Code';
     public $description = 'Position the QR code within the frame';
 
     protected $listeners = [
         'openQrScanner' => 'open',
+        'openQrScannerKeepOpen' => 'openKeepOpen',
         'closeQrScanner' => 'close',
     ];
 
     public function open()
+    {
+        $this->keepOpen = false;
+        $this->startOpen();
+    }
+
+    public function openKeepOpen(): void
+    {
+        $this->keepOpen = true;
+        $this->startOpen();
+    }
+
+    protected function startOpen(): void
     {
         $this->open = true;
         $this->scanError = null;
@@ -62,6 +76,7 @@ class QrScanner extends Component
     public function close()
     {
         $this->open = false;
+        $this->keepOpen = false;
         $this->scanError = null;
         $this->scanResult = null;
         $this->dispatch('qr-scanner-closed');
@@ -146,31 +161,33 @@ class QrScanner extends Component
 
         }
 
-            $this->resultData = $displayData;
-            $this->showResultModal = true;
-            
-            // Set the selected QR type and code for component rendering
-            if ($isMember && $qrType === 'LOC') {
-                $this->selectedQrType = 'location';
-                $this->selectedQrCode = $result;
-                Log::info('Dispatching location QR modal', ['location_code' => $result]);
-                $this->dispatch('openLocationQrModal', $result, $this->userLatitude, $this->userLongitude);
-            } elseif ($isMember && $qrType === 'EVT') {
-                $this->selectedQrType = 'event';
-                $this->selectedQrCode = $result;
-                Log::info('Dispatching event QR modal', ['event_code' => $result]);
-                $this->dispatch('openEventQrModal', $result, $this->userLatitude, $this->userLongitude);
-            }
-            elseif ($isMerchant && ($qrType === 'VOU' || $qrType === 'AVOU')) {
-                $this->selectedQrType = 'voucher';
-                $this->selectedQrCode = $voucherCode;
-                Log::info('Dispatching voucher QR modal', [
-                    'voucher_type' => $qrType,
-                    'voucher_code' => $voucherCode,
-                    'redeemer_qr_code' => $redeemerQrCode,
-                ]);
-                // Pass both voucher code and redeemer QR code
-                $this->dispatch('openVoucherQrModal', $voucherCode, $redeemerQrCode);
+            if (! $this->keepOpen) {
+                $this->resultData = $displayData;
+                $this->showResultModal = true;
+
+                // Set the selected QR type and code for component rendering
+                if ($isMember && $qrType === 'LOC') {
+                    $this->selectedQrType = 'location';
+                    $this->selectedQrCode = $result;
+                    Log::info('Dispatching location QR modal', ['location_code' => $result]);
+                    $this->dispatch('openLocationQrModal', $result, $this->userLatitude, $this->userLongitude);
+                } elseif ($isMember && $qrType === 'EVT') {
+                    $this->selectedQrType = 'event';
+                    $this->selectedQrCode = $result;
+                    Log::info('Dispatching event QR modal', ['event_code' => $result]);
+                    $this->dispatch('openEventQrModal', $result, $this->userLatitude, $this->userLongitude);
+                }
+                elseif ($isMerchant && ($qrType === 'VOU' || $qrType === 'AVOU')) {
+                    $this->selectedQrType = 'voucher';
+                    $this->selectedQrCode = $voucherCode;
+                    Log::info('Dispatching voucher QR modal', [
+                        'voucher_type' => $qrType,
+                        'voucher_code' => $voucherCode,
+                        'redeemer_qr_code' => $redeemerQrCode,
+                    ]);
+                    // Pass both voucher code and redeemer QR code
+                    $this->dispatch('openVoucherQrModal', $voucherCode, $redeemerQrCode);
+                }
             }
             
             Log::info('QR code scan processed successfully', [

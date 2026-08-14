@@ -1,6 +1,6 @@
 <div>
     <x-slot name="header">
-        <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-3">
+        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-3">
                 {{-- <a href="{{ route('admin.marketplace.index') }}" class="text-orange-500 font-medium hover:text-orange-600 text-sm">{{ __('← Items') }}</a> --}}
                 <h2 class="font-semibold md:text-xl text-2xl text-gray-800 leading-tight">{{ __('Marketplace Cashier') }}</h2>
@@ -12,7 +12,7 @@
     </x-slot>
 
     <div class="py-8">
-        <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8 space-y-6">
             @if (session('message'))
                 <div class="bg-green-50 flex gap-2 items-center border border-green-400 text-green-900 rounded-lg px-4 py-3 text-sm">
                     <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -24,9 +24,14 @@
             @if ($awaitingMemberPayment)
                 <div class="bg-white border-2 border-orange-400 rounded-xl shadow p-6 space-y-4 w-3/4 mx-auto">
                     <div class="space-y-1 mt-6">
-                        <h3 class="font-semibold text-gray-900">{{ __('Select member to charge the points to') }}</h3>
-                        <p class="text-sm text-gray-600">{{ __('Input the member\'s code or scan the QR code to charge the points to.') }}</p>
+                        <h3 class="font-semibold text-gray-900">{{ __('Queue checkout') }}</h3>
+                        <p class="text-sm text-gray-600">{{ __('These items stay on this screen. Scan each member’s QR code to charge the same items. Use Back to basket when the queue is done.') }}</p>
                     </div>
+                    @if ($lastSaleMessage)
+                        <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
+                            {{ $lastSaleMessage }}
+                        </div>
+                    @endif
                     <div class="flex flex-wrap gap-2 w-full">
                         <input
                             type="text"
@@ -36,7 +41,7 @@
                             class="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500"
                         >
                         <button type="button" wire:click="lookupMember" class="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900">{{ __('Lookup') }}</button>
-                        <button type="button" @click="$dispatch('openQrScanner')" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600">{{ __('Scan QR') }}</button>
+                        <button type="button" @click="$dispatch('openQrScannerKeepOpen')" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600">{{ __('Scan QR') }}</button>
                     </div>
                     @if ($resolvedMember)
                         <div class="space-y-1 mb-6">
@@ -56,7 +61,7 @@
 
                     <div class="space-y-1 mb-5">
                         <h3 class="text-lg font-semibold text-gray-900">{{ __('Product Checkout Summary') }}</h3>
-                        <p class="text-sm text-gray-600">{{ __('Please check the product details and quantity before confirming the payment.') }}</p>
+                        <p class="text-sm text-gray-600">{{ __('The same items will be charged to each scanned member until you go back to the basket.') }}</p>
                     </div>
 
                     <table class="w-full border-collapse border border-gray-200 rounded-lg p-4">
@@ -110,7 +115,7 @@
                     <br />
                     <br />
                     <div class="flex flex-wrap gap-2">
-                        <button type="button" wire:click="confirmPayment" @if(! empty($dailyLimitWarnings)) disabled @endif class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed">{{ __('Confirm Payment') }}</button>
+                        <button type="button" wire:click="confirmPayment" wire:loading.attr="disabled" @if(! empty($dailyLimitWarnings)) disabled @endif class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed">{{ __('Confirm Payment') }}</button>
                         <button type="button" wire:click="cancelPayment" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ __('Back to basket') }}</button>
                     </div>
                 </div>
