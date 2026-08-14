@@ -222,7 +222,7 @@
                                                     x-transition:leave-end="transform opacity-0 scale-95"
                                                     x-cloak
                                                     :style="`position: fixed; top: ${position.top}px; right: ${position.right}px;`"
-                                                    class="w-40 z-[9999] origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                                                    class="w-44 z-[9999] origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
                                                 >
                                                     <div class="py-1" role="menu" aria-orientation="vertical">
                                                         @if ($item->trashed())
@@ -240,6 +240,17 @@
                                                                     <span>{{ __('Restore') }}</span>
                                                                 </button>
                                                             @endcan
+                                                            <a
+                                                                href="{{ route('admin.marketplace.history', $item->id) }}"
+                                                                @click="open = false"
+                                                                class="flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                                                                role="menuitem"
+                                                            >
+                                                                <svg class="w-3 h-3 text-slate-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                                </svg>
+                                                                <span>{{ __('History') }}</span>
+                                                            </a>
                                                         @else
                                                             <a
                                                                 href="{{ route('admin.marketplace.inventory', $item->id) }}"
@@ -281,6 +292,17 @@
                                                                     <span>{{ __('Archive') }}</span>
                                                                 </button>
                                                             @endcan
+                                                            <a
+                                                                href="{{ route('admin.marketplace.history', $item->id) }}"
+                                                                @click="open = false"
+                                                                class="flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                                                                role="menuitem"
+                                                            >
+                                                                <svg class="w-3 h-3 text-slate-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                                </svg>
+                                                                <span>{{ __('History') }}</span>
+                                                            </a>
                                                         @endif
                                                     </div>
                                                 </div>
@@ -357,6 +379,12 @@
                                         @can('marketplace.delete')
                                             <button type="button" wire:click="restore({{ $item->id }})" class="text-xs bg-green-600 text-white px-3 py-1.5 rounded-full hover:bg-green-700 hover:text-green-100 transition-all duration-300">{{ __('Restore') }}</button>
                                         @endcan
+                                        <a href="{{ route('admin.marketplace.history', $item->id) }}" class="flex items-center gap-1 text-xs text-slate-800 hover:text-slate-500 hover:underline transition-all duration-300">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                            </svg>
+                                            <span>{{ __('History') }}</span>
+                                        </a>
                                     @else
                                         <a href="{{ route('admin.marketplace.inventory', $item->id) }}" class="flex items-center gap-1 text-xs text-slate-800 hover:text-slate-500 hover:underline transition-all duration-300">
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
@@ -390,6 +418,13 @@
                                                 <span>{{ __('Archive') }}</span>
                                             </button>
                                         @endcan
+                                        <span class="text-gray-400">|</span>
+                                        <a href="{{ route('admin.marketplace.history', $item->id) }}" class="flex items-center gap-1 text-xs text-slate-800 hover:text-slate-500 hover:underline transition-all duration-300">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                            </svg>
+                                            <span>{{ __('History') }}</span>
+                                        </a>
                                     @endif
                                 </div>
                             </div>

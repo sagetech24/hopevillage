@@ -5,6 +5,7 @@ namespace App\Livewire\Marketplace;
 use App\Models\Location;
 use App\Models\MarketplaceCategory;
 use App\Models\MarketplaceItem;
+use App\Services\MarketplaceItemAuditService;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -18,7 +19,7 @@ class Form extends Component
 
     public string $description = '';
 
-    public int $points_cost = 0;
+    public $points_cost = 0;
 
     public $amount_cost = 0.00;
 
@@ -119,6 +120,10 @@ class Form extends Component
 
     public function updated($propertyName): void
     {
+        if ($propertyName === 'points_cost' && ($this->points_cost === '' || $this->points_cost === null)) {
+            $this->points_cost = 0;
+        }
+
         if (! in_array($propertyName, ['confirmingZeroPoints', 'compute_points_cost', 'unlimited_stock'], true)) {
             $this->validateOnly($propertyName);
         }
@@ -171,6 +176,14 @@ class Form extends Component
         }
 
         return (int) round($amount * $stock);
+    }
+
+    public function computedCostPerItem(): float
+    {
+        $points = is_numeric($this->points_cost) ? (float) $this->points_cost : 0;
+        $amount = is_numeric($this->amount_cost) ? (float) $this->amount_cost : 0;
+
+        return round(max(0, $points) * max(0, $amount), 2);
     }
 
     public function save(): mixed
@@ -235,7 +248,7 @@ class Form extends Component
             'name' => $this->name,
             'marketplace_category_id' => $this->marketplace_category_id,
             'description' => $this->description ?: null,
-            'points_cost' => $this->points_cost,
+            'points_cost' => (int) $this->points_cost,
             'amount_cost' => $this->amount_cost === '' || $this->amount_cost === null ? 0.00 : $this->amount_cost,
             'per_item_quantity' => 1,
             'stock' => $stock,
@@ -254,13 +267,19 @@ class Form extends Component
             $item = MarketplaceItem::query()->create($data);
             $message = 'Marketplace item created successfully.';
         }
-        $item->locations()->sync($this->available_in_all_locations ? [] : $this->selectedLocations);
+
+        $previousLocationIds = $item->locations()->pluck('locations.id')->map(fn ($id) => (int) $id)->all();
+        $newLocationIds = $this->available_in_all_locations ? [] : array_map('intval', $this->selectedLocations);
+        $item->locations()->sync($newLocationIds);
+        app(MarketplaceItemAuditService::class)->logLocationsChanged($item, $previousLocationIds, $newLocationIds);
 
         if ($this->itemImage) {
+            $hadImage = $item->getFirstMedia('image') !== null;
             $item->clearMediaCollection('image');
             $item->addMedia($this->itemImage->getRealPath())
                 ->usingName($item->name.' — Image')
                 ->toMediaCollection('image');
+            app(MarketplaceItemAuditService::class)->logImageChanged($item, $hadImage ? 'replaced' : 'added');
         }
 
         session()->flash('message', $message);
@@ -275,8 +294,12 @@ class Form extends Component
 
         if ($this->itemId) {
             $item = MarketplaceItem::query()->findOrFail($this->itemId);
+            $hadImage = $item->getFirstMedia('image') !== null;
             $item->clearMediaCollection('image');
             $this->existingItemImage = null;
+            if ($hadImage) {
+                app(MarketplaceItemAuditService::class)->logImageChanged($item, 'removed');
+            }
         }
         $this->itemImage = null;
     }

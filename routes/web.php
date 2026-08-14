@@ -114,6 +114,8 @@ Route::middleware([
     Route::get('/admin/marketplace/cashier', \App\Livewire\Marketplace\Cashier::class)->name('admin.marketplace.cashier');
     Route::get('/admin/marketplace/orders', \App\Livewire\Marketplace\Orders::class)->name('admin.marketplace.orders');
     Route::get('/admin/marketplace/create', \App\Livewire\Marketplace\Form::class)->name('admin.marketplace.create');
+    Route::get('/admin/marketplace/{id}/inventory', \App\Livewire\Marketplace\Inventory::class)->name('admin.marketplace.inventory');
+    Route::get('/admin/marketplace/{id}/history', \App\Livewire\Marketplace\History::class)->name('admin.marketplace.history');
     Route::get('/admin/marketplace/{id}/edit', \App\Livewire\Marketplace\Form::class)->name('admin.marketplace.edit');
     Route::get('/admin/marketplace', \App\Livewire\Marketplace\Index::class)->name('admin.marketplace.index');
 

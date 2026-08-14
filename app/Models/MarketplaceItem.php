@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Observers\MarketplaceItemObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
+#[ObservedBy([MarketplaceItemObserver::class])]
 class MarketplaceItem extends Model implements HasMedia
 {
     use HasFactory, InteractsWithMedia, SoftDeletes;
@@ -77,6 +80,11 @@ class MarketplaceItem extends Model implements HasMedia
     public function orderLineItems(): HasMany
     {
         return $this->hasMany(MarketplaceOrderItem::class, 'marketplace_item_id');
+    }
+
+    public function audits(): HasMany
+    {
+        return $this->hasMany(MarketplaceItemAudit::class)->orderByDesc('created_at');
     }
 
     public function scopeActive(Builder $query): Builder
