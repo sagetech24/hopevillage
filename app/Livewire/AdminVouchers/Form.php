@@ -72,6 +72,14 @@ class Form extends Component
         $this->validateOnly($propertyName);
     }
 
+    public function computedCostPerVoucher(): float
+    {
+        $points = is_numeric($this->points_cost) ? (float) $this->points_cost : 0;
+        $amount = is_numeric($this->amount_cost) ? (float) $this->amount_cost : 0;
+
+        return round(max(0, $points) * max(0, $amount), 2);
+    }
+
     public function save()
     {
         $this->validate();

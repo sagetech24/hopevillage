@@ -23,19 +23,21 @@
                     <h3 class="text-2xl font-nunito font-bold text-gray-900">Manage Vouchers</h3>
                     <p class="text-gray-600 font-nunito text-sm">Manage your vouchers here</p>
                 </div>
-                <a 
-                    title="Add New Voucher"
-                    href="{{ route('merchant.vouchers.create') }}" 
-                    class="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold p-3 rounded-full hover:scale-105 transition-all duration-300"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                </a>
+                @if($merchant?->is_active)
+                    <a 
+                        title="Add New Voucher"
+                        href="{{ route('merchant.vouchers.create') }}" 
+                        class="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold p-3 rounded-full hover:scale-105 transition-all duration-300"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                    </a>
+                @endif
             </div>
 
 
-            @if(!$merchant->is_active)
+            @if($merchant && !$merchant->is_active)
                 <div class="mb-4 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded relative md:mx-0 mx-4" role="alert">
                     <span class="block sm:inline">
                         <strong>Notice:</strong> Your merchant account is pending approval. You cannot create or edit vouchers until your account is approved.

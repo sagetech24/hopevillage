@@ -25,14 +25,9 @@ class EnsureMerchantUser
             abort(403, 'Unauthorized access. Merchant user privileges required.');
         }
 
-        // Ensure user has at least one merchant
-        if ($user->merchants()->count() === 0) {
-            abort(403, 'No merchant assigned to your account. Please contact an administrator.');
-        }
-
-        // Ensure user has a current merchant set
+        // If the user has merchants but none is selected, use the first one.
+        // Merchant users with no store yet can still open the merchant dashboard.
         if (!$user->currentMerchant()) {
-            // Set first merchant as current if none is set
             $firstMerchant = $user->merchants()->first();
             if ($firstMerchant) {
                 $user->setCurrentMerchant($firstMerchant->id);

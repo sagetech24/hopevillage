@@ -44,10 +44,34 @@ class AdminVoucherLedgerEntry extends Model
     }
 
     /**
+     * Cost per voucher: cost per point × points per voucher.
+     */
+    public function costPerVoucher(): float
+    {
+        return round(
+            max(0, (float) ($this->adminVoucher?->amount_cost ?? 0))
+            * max(0, (float) ($this->adminVoucher?->points_cost ?? 0)),
+            2
+        );
+    }
+
+    /**
+     * Total dispensed: total redeemed × cost per voucher.
+     */
+    public function computedTotalDispensed(): float
+    {
+        return round((int) $this->total_redemptions * $this->costPerVoucher(), 2);
+    }
+
+    /**
      * Get the total amount reimbursed for this ledger entry.
      */
     public function getTotalReimbursedAttribute(): float
     {
+        if (array_key_exists('reimbursements_sum_amount', $this->attributes)) {
+            return (float) ($this->attributes['reimbursements_sum_amount'] ?? 0);
+        }
+
         return (float) $this->reimbursements()->sum('amount');
     }
 
@@ -56,6 +80,6 @@ class AdminVoucherLedgerEntry extends Model
      */
     public function getOutstandingBalanceAttribute(): float
     {
-        return (float) $this->total_amount_dispensed - $this->total_reimbursed;
+        return $this->computedTotalDispensed() - $this->total_reimbursed;
     }
 }

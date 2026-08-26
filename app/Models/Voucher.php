@@ -84,7 +84,7 @@ class Voucher extends Model implements HasMedia
 
     public function merchant(): BelongsTo
     {
-        return $this->belongsTo(Merchant::class);
+        return $this->belongsTo(Merchant::class)->withTrashed();
     }
 
     public function users(): BelongsToMany

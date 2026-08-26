@@ -22,6 +22,10 @@ class Index extends Component
     public function mount()
     {
         $this->showMessage = session()->has('message');
+
+        if (! auth()->user()->currentMerchant()) {
+            $this->redirect(route('merchant.dashboard'));
+        }
     }
 
     public function updatingSearch()
@@ -43,7 +47,7 @@ class Index extends Component
     {
         $merchant = auth()->user()->currentMerchant();
         if (!$merchant) {
-            abort(403, 'No merchant associated with your account. Please contact an administrator.');
+            return redirect()->route('merchant.dashboard');
         }
 
         if (!$merchant->is_active) {
@@ -64,9 +68,13 @@ class Index extends Component
     public function render()
     {
         $merchant = auth()->user()->currentMerchant();
-        
-        if (!$merchant) {
-            abort(403, 'No merchant associated with your account. Please contact an administrator.');
+
+        if (! $merchant) {
+            return view('livewire.merchant.vouchers.index', [
+                'vouchers' => collect(),
+                'adminVouchers' => collect(),
+                'merchant' => null,
+            ])->layout('layouts.app');
         }
 
         // Get all merchant vouchers (not filtered by is_active), sorted by valid_until DESC

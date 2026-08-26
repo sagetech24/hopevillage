@@ -27,9 +27,15 @@ class AdminVoucherLedgerSyncService
                 user_admin_voucher.admin_voucher_id,
                 DATE_FORMAT(user_admin_voucher.redeemed_at, "%Y-%m-01") as period_month,
                 COUNT(*) as total_redemptions,
-                COUNT(*) * admin_vouchers.amount_cost as total_amount_dispensed
+                COUNT(*) * admin_vouchers.amount_cost * admin_vouchers.points_cost as total_amount_dispensed
             ')
-            ->groupBy('user_admin_voucher.redeemed_at_merchant_id', 'user_admin_voucher.admin_voucher_id', DB::raw('DATE_FORMAT(user_admin_voucher.redeemed_at, "%Y-%m-01")'), 'admin_vouchers.amount_cost')
+            ->groupBy(
+                'user_admin_voucher.redeemed_at_merchant_id',
+                'user_admin_voucher.admin_voucher_id',
+                DB::raw('DATE_FORMAT(user_admin_voucher.redeemed_at, "%Y-%m-01")'),
+                'admin_vouchers.amount_cost',
+                'admin_vouchers.points_cost'
+            )
             ->get();
 
         $count = 0;

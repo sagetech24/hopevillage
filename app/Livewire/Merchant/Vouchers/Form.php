@@ -46,7 +46,9 @@ class Form extends Component
     {
         $merchant = auth()->user()->currentMerchant();
         if (!$merchant) {
-            abort(403, 'No merchant associated with your account. Please contact an administrator.');
+            $this->redirect(route('merchant.dashboard'));
+
+            return;
         }
 
         if (!$merchant->is_active) {
@@ -99,7 +101,7 @@ class Form extends Component
     {
         $merchant = auth()->user()->currentMerchant();
         if (!$merchant) {
-            abort(403, 'No merchant associated with your account. Please contact an administrator.');
+            return redirect()->route('merchant.dashboard');
         }
 
         if (!$merchant->is_active) {

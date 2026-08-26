@@ -21,6 +21,16 @@ class Index extends Component
     public ?string $qrVoucherCode = null;
     public ?string $qrRedeemableAt = null;
 
+    public bool $showClaimConfirm = false;
+    public ?int $pendingClaimId = null;
+    public ?string $pendingClaimType = null;
+    public ?string $confirmName = null;
+    public ?string $confirmMerchantName = null;
+    public ?string $confirmDiscountLabel = null;
+    public ?int $confirmPointsCost = null;
+    public ?string $confirmValidUntil = null;
+    public ?int $confirmUserPoints = null;
+
     protected $listeners = [
         'voucher-redeemed' => 'handleVoucherRedeemed',
     ];
@@ -31,6 +41,96 @@ class Index extends Component
         if (in_array($tab, ['active', 'claimed', 'redeemed'], true)) {
             $this->tab = $tab;
         }
+    }
+
+    public function openClaimConfirm(int $id, string $type): void
+    {
+        $user = auth()->user();
+        if (!$user) {
+            $this->dispatch('notify', type: 'error', message: 'You must be logged in to claim vouchers.');
+            return;
+        }
+
+        if ($type === 'admin') {
+            $voucher = AdminVoucher::query()->with('merchants')->whereKey($id)->first();
+            if (!$voucher || !$voucher->isValid() || !$voucher->isVisibleToMember($user)) {
+                $this->dispatch('notify', type: 'error', message: 'Voucher is not available.');
+                return;
+            }
+            if ($user->adminVouchers()->where('admin_vouchers.id', $id)->exists()) {
+                $this->dispatch('notify', type: 'info', message: 'You already claimed this admin voucher.');
+                return;
+            }
+            if ($user->total_points < $voucher->points_cost) {
+                $this->dispatch('notify', type: 'error', message: 'Insufficient points. You need ' . number_format($voucher->points_cost) . ' points to claim this voucher.');
+                return;
+            }
+
+            $this->confirmName = $voucher->name;
+            $this->confirmMerchantName = $voucher->merchants->pluck('name')->filter()->join(', ') ?: 'All Sellers';
+            $this->confirmDiscountLabel = null;
+            $this->confirmPointsCost = (int) $voucher->points_cost;
+            $this->confirmValidUntil = $voucher->valid_until
+                ? $voucher->valid_until->format('d/m/Y g:i A')
+                : null;
+            $this->confirmUserPoints = (int) $user->total_points;
+        } else {
+            $voucher = Voucher::query()->with('merchant')->whereKey($id)->first();
+            if (!$voucher || !$voucher->isValid() || !$voucher->isVisibleToMember($user)) {
+                $this->dispatch('notify', type: 'error', message: 'Voucher is not available.');
+                return;
+            }
+            if ($user->vouchers()->where('vouchers.id', $id)->exists()) {
+                $this->dispatch('notify', type: 'info', message: 'You already claimed this voucher.');
+                return;
+            }
+
+            if ($voucher->discount_type === 'percentage') {
+                $discount = rtrim(rtrim((string) $voucher->discount_value, '0'), '.') . '% off';
+            } else {
+                $discount = '$' . number_format((float) $voucher->discount_value, 2) . ' off';
+            }
+
+            $this->confirmName = $voucher->name;
+            $this->confirmMerchantName = $voucher->merchant?->name ?: 'All Sellers';
+            $this->confirmDiscountLabel = $discount;
+            $this->confirmPointsCost = null;
+            $this->confirmValidUntil = $voucher->valid_until
+                ? $voucher->valid_until->format('d/m/Y g:i A')
+                : null;
+            $this->confirmUserPoints = (int) $user->total_points;
+        }
+
+        $this->pendingClaimId = $id;
+        $this->pendingClaimType = $type === 'admin' ? 'admin' : 'merchant';
+        $this->showClaimConfirm = true;
+    }
+
+    public function closeClaimConfirm(): void
+    {
+        $this->showClaimConfirm = false;
+        $this->pendingClaimId = null;
+        $this->pendingClaimType = null;
+        $this->confirmName = null;
+        $this->confirmMerchantName = null;
+        $this->confirmDiscountLabel = null;
+        $this->confirmPointsCost = null;
+        $this->confirmValidUntil = null;
+        $this->confirmUserPoints = null;
+    }
+
+    public function confirmClaim(): void
+    {
+        $id = $this->pendingClaimId;
+        $type = $this->pendingClaimType;
+
+        if ($type === 'admin' && $id) {
+            $this->claimAdminVoucher($id);
+        } elseif ($type === 'merchant' && $id) {
+            $this->claim($id);
+        }
+
+        $this->closeClaimConfirm();
     }
 
     public function claim(int $voucherId): void
@@ -235,9 +335,14 @@ class Index extends Component
                 ];
             });
 
+        $userPoints = (int) ($user->total_points ?? 0);
+
         return $merchantItems
             ->concat($adminItems)
-            ->sortByDesc('created_at')
+            ->sortBy([
+                fn ($item) => ($item->type === 'admin' && $userPoints < (int) ($item->points_cost ?? 0)) ? 1 : 0,
+                fn ($item) => $item->created_at ? -strtotime((string) $item->created_at) : 0,
+            ])
             ->values();
     }
 

@@ -40,6 +40,8 @@ class AdminVoucherLedger extends Component
 
     public string $reimbNotes = '';
 
+    public string $viewMode = 'card';
+
     protected $paginationTheme = 'tailwind';
 
     protected $queryString = [
@@ -49,6 +51,21 @@ class AdminVoucherLedger extends Component
         'merchantSearch' => ['except' => ''],
         'outstandingOnly' => ['except' => false],
     ];
+
+    public function mount(): void
+    {
+        $this->viewMode = session('admin_voucher_ledger_view_mode', 'card');
+    }
+
+    public function setViewMode(string $mode): void
+    {
+        if (! in_array($mode, ['card', 'list'], true)) {
+            return;
+        }
+
+        $this->viewMode = $mode;
+        session(['admin_voucher_ledger_view_mode' => $mode]);
+    }
 
     public function updatingDateFilter(): void
     {
@@ -112,9 +129,10 @@ class AdminVoucherLedger extends Component
             'reimbDate' => 'required|date',
         ]);
 
-        $entry = AdminVoucherLedgerEntry::withSum('reimbursements', 'amount')->findOrFail($this->selectedLedgerEntryId);
-        $totalReimbursed = (float) ($entry->reimbursements_sum_amount ?? 0);
-        $outstanding = (float) $entry->total_amount_dispensed - $totalReimbursed;
+        $entry = AdminVoucherLedgerEntry::with('adminVoucher')
+            ->withSum('reimbursements', 'amount')
+            ->findOrFail($this->selectedLedgerEntryId);
+        $outstanding = $entry->outstanding_balance;
         $amount = (float) $this->reimbAmount;
 
         if ($amount > $outstanding) {
@@ -185,7 +203,9 @@ class AdminVoucherLedger extends Component
         }
 
         if ($this->outstandingOnly) {
-            $query->whereRaw('(SELECT COALESCE(SUM(amount), 0) FROM admin_voucher_reimbursements WHERE admin_voucher_reimbursements.admin_voucher_ledger_entry_id = admin_voucher_ledger_entries.id) < admin_voucher_ledger_entries.total_amount_dispensed');
+            $query->whereRaw(
+                '(SELECT COALESCE(SUM(amount), 0) FROM admin_voucher_reimbursements WHERE admin_voucher_reimbursements.admin_voucher_ledger_entry_id = admin_voucher_ledger_entries.id) < (admin_voucher_ledger_entries.total_redemptions * COALESCE((SELECT admin_vouchers.amount_cost * admin_vouchers.points_cost FROM admin_vouchers WHERE admin_vouchers.id = admin_voucher_ledger_entries.admin_voucher_id), 0))'
+            );
         }
 
         $entries = $query->orderByDesc('period_month')

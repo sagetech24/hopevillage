@@ -153,16 +153,21 @@ class User extends Authenticatable
     }
 
     /**
-     * Count of active, valid vouchers (merchant + admin) not yet claimed or redeemed by this member.
+     * Count of active, valid vouchers (merchant + admin) not yet claimed or redeemed by this member
+     * and visible to this member based on voucher visibility_to_type_of_work.
      */
     public function getClaimableVouchersCount(): int
     {
         $merchantCount = Voucher::valid()
             ->whereDoesntHave('users', fn ($q) => $q->where('users.id', $this->id))
+            ->get(['id', 'visibility_to_type_of_work'])
+            ->filter(fn (Voucher $voucher) => $voucher->isVisibleToMember($this))
             ->count();
 
         $adminCount = AdminVoucher::valid()
             ->whereDoesntHave('users', fn ($q) => $q->where('users.id', $this->id))
+            ->get(['id', 'visibility_to_type_of_work'])
+            ->filter(fn (AdminVoucher $voucher) => $voucher->isVisibleToMember($this))
             ->count();
 
         return $merchantCount + $adminCount;

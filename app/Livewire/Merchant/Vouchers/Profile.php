@@ -18,7 +18,9 @@ class Profile extends Component
         $this->merchant = auth()->user()->currentMerchant();
         
         if (!$this->merchant) {
-            abort(403, 'No merchant associated with your account.');
+            $this->redirect(route('merchant.dashboard'));
+
+            return;
         }
 
         $this->loadVoucher();

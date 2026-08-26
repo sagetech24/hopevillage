@@ -1,5 +1,5 @@
 <div
-    wire:poll.5s
+    @if(! $showClaimConfirm && ! $showQr) wire:poll.5s @endif
     x-data="{
         tab: @entangle('tab'),
         setTab(next) {
@@ -82,11 +82,80 @@
 
     <div
         x-cloak
+        x-show="$wire.showClaimConfirm"
+        x-transition.opacity
+        class="fixed inset-0 z-90 bg-black/80 flex items-center justify-center p-6"
+        @click="$wire.closeClaimConfirm()"
+        @keydown.escape.window="if ($wire.showClaimConfirm) $wire.closeClaimConfirm()"
+    >
+        <div class="bg-white w-full max-w-sm rounded-2xl p-5" @click.stop>
+            <h3 class="text-lg font-bold text-gray-900 text-center">Confirm Claim</h3>
+            <p class="mt-1 text-xs text-gray-500 text-center">Please review this voucher before claiming.</p>
+
+            <div class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-2">
+                <p class="text-sm font-bold text-gray-900 leading-tight">{{ $confirmName }}</p>
+                @if($confirmMerchantName)
+                    <p class="text-xs text-gray-600">Redeemable at <span class="font-semibold text-gray-800">{{ $confirmMerchantName }}</span></p>
+                @endif
+                @if($confirmDiscountLabel)
+                    <p class="text-xs text-gray-600">Discount: <span class="font-semibold text-gray-800">{{ $confirmDiscountLabel }}</span></p>
+                @endif
+                @if($pendingClaimType === 'admin')
+                    <p class="text-xs text-gray-600">Points cost: <span class="font-semibold text-gray-800">{{ number_format($confirmPointsCost ?? 0) }}</span></p>
+                @endif
+                @if($confirmValidUntil)
+                    <p class="text-xs text-gray-600">Valid until <span class="font-semibold text-gray-800">{{ $confirmValidUntil }}</span></p>
+                @endif
+            </div>
+
+            @if($pendingClaimType === 'admin')
+                <div class="mt-3">
+                    <p class="text-md font-semibold text-gray-900 leading-snug">
+                        <span class="font-bold">-{{ number_format($confirmPointsCost ?? 0) }} points</span>
+                        will be deducted from your points wallet.
+                    </p>
+                    {{-- <p class="text-sm text-orange-800 mt-1">
+                        Current balance: {{ number_format($confirmUserPoints ?? 0) }}
+                        → After claim: {{ number_format(max(0, (int) ($confirmUserPoints ?? 0) - (int) ($confirmPointsCost ?? 0))) }}
+                    </p> --}}
+                </div>
+            @endif
+
+            <div class="mt-5 flex items-center gap-3">
+                <button
+                    type="button"
+                    wire:click="closeClaimConfirm"
+                    wire:loading.attr="disabled"
+                    wire:target="confirmClaim"
+                    class="flex-1 py-2.5 rounded-full border border-gray-300 text-sm font-semibold text-gray-700"
+                >
+                    Cancel
+                </button>
+                <button
+                    type="button"
+                    wire:click="confirmClaim"
+                    wire:loading.attr="disabled"
+                    wire:target="confirmClaim"
+                    @class([
+                        'flex-1 py-2.5 rounded-full text-sm font-semibold text-white',
+                        'bg-teal-600' => $pendingClaimType === 'admin',
+                        'bg-orange-500' => $pendingClaimType !== 'admin',
+                    ])
+                >
+                    <span wire:loading.remove wire:target="confirmClaim">Confirm</span>
+                    <span wire:loading wire:target="confirmClaim">...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div
+        x-cloak
         x-show="$wire.showQr"
         x-transition.opacity
         class="fixed inset-0 z-90 bg-black/80 flex items-center justify-center p-6"
         @click="$wire.closeQr()"
-        @keydown.escape.window="$wire.closeQr()"
+        @keydown.escape.window="if ($wire.showQr) $wire.closeQr()"
     >
         <div class="bg-white w-full max-w-lg flex flex-col items-center justify-center rounded-2xl p-5" @click.stop>
             <h3 class="text-md font-bold text-gray-800 text-center leading-tight">{{ $qrVoucherName }}</h3>

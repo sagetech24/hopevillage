@@ -128,11 +128,9 @@
                                     @if($imageUrl)
                                         <img src="{{ $imageUrl }}" alt="{{ $adminVoucher->name }}" class="w-full md:h-24 h-40 object-fit bg-center bg-cover mt-4 md:ml-8 ml-4">
                                     @else
-                                        @php
-                                            $qrCodeService = app(\App\Services\QrCodeService::class);
-                                            $qrCodeImage = $qrCodeService->generateQrCodeImage($adminVoucher->voucher_code, 112);
-                                        @endphp
-                                        <img src="{{ $qrCodeImage }}" alt="Voucher QR Code" class="w-full h-full object-contain md:mt-8 mt-0">
+                                        <div class="w-full md:h-24 h-40 mt-4 md:ml-8 ml-4 bg-gray-200 flex items-center justify-center border border-gray-300">
+                                            <p class="text-gray-400 text-sm">No Image</p>
+                                        </div>
                                     @endif
                                 </div>
                                 <div class="flex md:flex-row flex-col w-full items-start gap-2 p-4 justify-between">

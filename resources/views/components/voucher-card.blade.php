@@ -113,12 +113,12 @@
                 @if($type === 'merchant')
                     <div class="flex items-center gap-1">
                         <span class="text-sm text-gray-500">Merchant:</span>
-                        <span class="text-sm text-gray-500">{{ $voucher->merchant->name }}</span>
+                        <span class="text-sm text-gray-500">{{ $voucher->merchant?->name ?? 'Unknown Merchant' }}</span>
                     </div>
                 @elseif($type === 'admin')
                     <div class="flex items-start gap-1">
-                        <span class="text-sm text-gray-500">Merhants:</span>
-                        <span class="text-sm text-gray-500">{{ $voucher->merchants->pluck('name')->join(', ') }}</span>
+                        <span class="text-sm text-gray-500">Merchants:</span>
+                        <span class="text-sm text-gray-500">{{ $voucher->merchants->pluck('name')->filter()->join(', ') ?: 'None' }}</span>
                     </div>
                 @endif
                 
