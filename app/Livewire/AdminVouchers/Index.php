@@ -48,7 +48,11 @@ class Index extends Component
 
     public function render()
     {
-        $query = AdminVoucher::with(['merchants', 'createdBy']);
+        $query = AdminVoucher::with(['merchants', 'createdBy'])
+            ->withCount([
+                'users as claimed_count' => fn ($q) => $q->where('user_admin_voucher.status', 'claimed'),
+                'users as redeemed_count' => fn ($q) => $q->where('user_admin_voucher.status', 'redeemed'),
+            ]);
 
         if ($this->search) {
             $query->where(function ($q) {
@@ -58,9 +62,19 @@ class Index extends Component
             });
         }
 
-        if ($this->statusFilter !== 'all') {
-            $query->where('is_active', $this->statusFilter === 'active');
-        }
+        $now = now();
+
+        match ($this->statusFilter) {
+            'active' => $query->valid(),
+            'inactive' => $query->where('is_active', false),
+            'full' => $query
+                ->whereNotNull('usage_limit')
+                ->whereColumn('usage_count', '>=', 'usage_limit'),
+            'expired' => $query
+                ->whereNotNull('valid_until')
+                ->where('valid_until', '<', $now),
+            default => null,
+        };
 
         $adminVouchers = $query->orderBy('created_at', 'desc')->paginate(10);
 
