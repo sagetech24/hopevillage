@@ -31,6 +31,8 @@ class PointsService
 
     public const ACTIVITY_ADMIN_VOUCHER_CLAIM = 'member_claim_admin_voucher';
 
+    public const ACTIVITY_ADMIN_AWARD_ADMIN_VOUCHER = 'admin_award_admin_voucher';
+
     public const ACTIVITY_REFERRAL = 'member_referral';
 
     public const ACTIVITY_MARKETPLACE_REDEEM = 'marketplace_redeem';
@@ -422,6 +424,57 @@ class PointsService
     }
 
     /**
+     * Audit log when an admin awards an admin voucher to a member (no points movement).
+     * Caller must wrap in {@see DB::transaction} when used alongside pivot attach.
+     */
+    public function logAdminVoucherAward(
+        User $member,
+        AdminVoucher $adminVoucher,
+        ?string $reason,
+        User $admin,
+    ): void {
+        $description = sprintf(
+            'Admin %s (#%d) awarded voucher %s - %s to %s (#%d)',
+            $admin->name,
+            $admin->id,
+            $adminVoucher->voucher_code,
+            $adminVoucher->name,
+            $member->name,
+            $member->id,
+        );
+
+        if ($reason) {
+            $description .= ' — '.$reason;
+        }
+
+        $activityType = $this->resolveActivityTypeForPointMovement(self::ACTIVITY_ADMIN_AWARD_ADMIN_VOUCHER);
+
+        $config = PointSystemConfig::query()->firstOrCreate(
+            [
+                'activity_type_id' => $activityType->id,
+                'location_id' => null,
+                'amenity_id' => null,
+            ],
+            [
+                'points' => 0,
+                'description' => 'Admin awarded admin voucher to member',
+                'is_active' => true,
+            ],
+        );
+
+        PointLog::query()->create([
+            'user_id' => $member->id,
+            'point_system_config_id' => $config->id,
+            'activity_type_id' => $activityType->id,
+            'location_id' => null,
+            'amenity_id' => null,
+            'points' => 0,
+            'description' => $description,
+            'awarded_at' => now(),
+        ]);
+    }
+
+    /**
      * Resolve activity type (creating marketplace redeem/refund types when missing).
      * Use before creating a {@see MemberActivity} row that will be linked from {@see PointLog}.
      */
@@ -451,6 +504,16 @@ class PointsService
                 ['name' => self::ACTIVITY_MARKETPLACE_REFUND],
                 [
                     'description' => 'Points refunded from cancelled marketplace order',
+                    'is_active' => true,
+                ],
+            );
+        }
+
+        if ($activityName === self::ACTIVITY_ADMIN_AWARD_ADMIN_VOUCHER) {
+            return ActivityType::query()->firstOrCreate(
+                ['name' => self::ACTIVITY_ADMIN_AWARD_ADMIN_VOUCHER],
+                [
+                    'description' => 'Admin awarded admin voucher to member',
                     'is_active' => true,
                 ],
             );

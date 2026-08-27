@@ -34,11 +34,11 @@
                                     $statusLabel = 'Full';
                                     $statusClass = 'bg-orange-500 text-white';
                                 } else {
-                                    $statusLabel = 'On Going';
+                                    $statusLabel = 'Active';
                                     $statusClass = 'bg-green-500 text-white';
                                 }
                             @endphp
-                            <span class="px-3 uppercase py-1 inline-flex text-lg tracking-widest font-thin rounded-sm {{ $statusClass }}">
+                            <span class="px-3 uppercase py-1 inline-flex text-lg tracking-widest rounded-sm {{ $statusClass }}">
                                 {{ $statusLabel }}
                             </span>
                         </div>
@@ -67,69 +67,79 @@
                                     <label class="text-sm font-medium text-gray-500">Voucher Code</label>
                                     <p class="text-gray-900 font-mono">{{ $voucher->voucher_code }}</p>
                                 </div>
-                                <div>
-                                    <label class="text-sm font-medium text-gray-500">Status</label>
-                                    <p>
-                                        @php
-                                            $isValid = $voucher->is_active && $voucher->isValid();
-                                            $statusReason = $voucher->getStatusReason();
-                                            $statusClass = $isValid ? 'bg-green-100 text-green-800 border border-green-500' : 'bg-red-100 text-red-800 border border-red-500';
-                                            $statusText = $isValid ? 'Active' : ($statusReason ?: 'Inactive');
-                                        @endphp
-                                        <span class="px-3 py-1 inline-flex text-md leading-5 font-semibold rounded-full {{ $statusClass }}" title="{{ $statusReason ? 'Reason: ' . $statusReason : '' }}">
-                                            {{ $statusText }}
-                                        </span>
-                                        @if($statusReason && !$isValid)
-                                            <p class="text-xs text-red-600 mt-1">{{ $statusReason }}</p>
-                                        @endif
-                                    </p>
-                                </div>
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            @php
+                                $pointsCost = max(0, (int) $voucher->points_cost);
+                                $costPerPoint = max(0, (float) $voucher->amount_cost);
+                                $costPerVoucher = round($pointsCost * $costPerPoint, 2);
+                            @endphp
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
                                     <label class="text-sm font-medium text-gray-500">Points Cost</label>
                                     <p class="text-gray-900 font-semibold text-lg flex items-center gap-1">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-orange-500">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
                                         </svg>
-                                        {{ number_format($voucher->points_cost) }} Points
+                                        {{ number_format($pointsCost) }} pts
                                     </p>
                                 </div>
                                 <div>
-                                    <label class="text-sm font-medium text-gray-500">Amount Cost</label>
+                                    <label class="text-sm font-medium text-gray-500">Cost Per Point</label>
                                     <p class="text-gray-900 font-semibold text-lg flex items-center gap-1">
                                         <svg class="w-5 h-5 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
                                         </svg>
-                                        ${{ number_format($voucher->amount_cost, 2) }}
+                                        SGD {{ number_format($costPerPoint, 2) }}
+                                    </p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-500">Cost Per Voucher</label>
+                                    <p class="text-gray-900 font-semibold text-lg flex items-center gap-1">
+                                        <svg class="w-5 h-5 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
+                                        </svg>
+                                        SGD {{ number_format($costPerVoucher, 2) }}
                                     </p>
                                 </div>
                             </div>
 
                             @if($voucher->valid_from || $voucher->valid_until)
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                @if($voucher->valid_from)
-                                <div>
-                                    <label class="text-sm font-medium text-gray-500">Valid From</label>
-                                    <p class="text-gray-900">{{ $voucher->valid_from->format('d M Y g:i A') }}</p>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    @if($voucher->valid_from)
+                                        <div>
+                                            <label class="text-sm font-medium text-gray-500">Valid From</label>
+                                            <p class="text-gray-900">{{ $voucher->valid_from->format('d M Y g:i A') }}</p>
+                                        </div>
+                                    @endif
+                                    @if($voucher->valid_until)
+                                        <div>
+                                            <label class="text-sm font-medium text-gray-500">Valid Until</label>
+                                            <p class="text-gray-900">{{ $voucher->valid_until->format('d M Y g:i A') }}</p>
+                                        </div>
+                                    @endif
                                 </div>
-                                @endif
-                                @if($voucher->valid_until)
-                                <div>
-                                    <label class="text-sm font-medium text-gray-500">Valid Until</label>
-                                    <p class="text-gray-900">{{ $voucher->valid_until->format('d M Y g:i A') }}</p>
-                                </div>
-                                @endif
-                            </div>
                             @endif
 
-                            @if($voucher->usage_limit)
+                            @php
+                                $claimedOnlyCount = count($claimedMembers);
+                                $redeemedCount = count($redeemedMembers);
+                                $claimedTally = $claimedOnlyCount + $redeemedCount;
+                                $totalReleased = $voucher->usage_limit !== null ? (int) $voucher->usage_limit : null;
+                            @endphp
                             <div>
                                 <label class="text-sm font-medium text-gray-500">Usage</label>
-                                <p class="text-gray-900">{{ $voucher->usage_count }} / {{ $voucher->usage_limit }}</p>
+                                <p class="text-gray-900 font-semibold text-lg tracking-wide">
+                                    C-{{ number_format($claimedTally) }}
+                                    <span class="text-gray-400 font-normal">|</span>
+                                    R - {{ number_format($redeemedCount) }}
+                                    <span class="text-gray-400 font-normal">|</span>
+                                    T = {{ $totalReleased !== null ? number_format($totalReleased) : '∞' }}
+                                </p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    C = Claimed · R = Redeemed · T = Total Quantity
+                                </p>
                             </div>
-                            @endif
                         </div>
                     </div>
 
@@ -357,6 +367,16 @@
                                 <svg class="size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#ffffff"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
                                 Edit Voucher
                             </a>
+                            <button
+                                type="button"
+                                wire:click="openAwardModal"
+                                class="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 hover:-translate-y-0.5 text-white text-center font-semibold py-4 px-4 rounded-lg transition-all duration-200"
+                            >
+                                <svg class="size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 0 1-.982-3.172M9.497 14.25a7.454 7.454 0 0 0 .981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 0 0 7.5 9.75c0 .896.393 1.7 1.016 2.25M5.25 4.236c.982.143 1.954.317 2.916.52M5.25 4.236V4.5c0 2.108 4.284 3.818 9.75 3.818S24.75 6.608 24.75 4.5V4.236m0 0A6.003 6.003 0 0 0 18.75 9.75c0 .896-.393 1.7-1.016 2.25" />
+                                </svg>
+                                Award to Member
+                            </button>
                         </div>
                     </div>
 
@@ -414,4 +434,204 @@
             </div>
         </div>
     </div>
+
+    <x-dialog-modal wire:model="showAwardModal" maxWidth="2xl">
+        <x-slot name="title">
+            Award Voucher to Members
+        </x-slot>
+
+        <x-slot name="content">
+            <p class="text-sm text-gray-600 mb-4">
+                Assign <span class="font-semibold text-gray-900">{{ $voucher->name }}</span> ({{ $voucher->voucher_code }}) to one or more members. Selected members keep their checks while you search again. Vouchers appear in their Claimed tab without deducting points.
+            </p>
+
+            @php
+                $claimedForAward = (int) $voucher->usage_count;
+                $usageLimit = $voucher->usage_limit;
+                $remainingForAward = $remainingForAward ?? ($usageLimit !== null
+                    ? max(0, (int) $usageLimit - $claimedForAward)
+                    : null);
+                $selectionAtMax = $remainingForAward !== null
+                    && count($selectedMemberIds) >= $remainingForAward;
+                $noSlotsRemaining = $remainingForAward === 0;
+            @endphp
+            <div class="mb-4 rounded-lg border {{ $noSlotsRemaining ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-gray-50' }} px-3 py-2">
+                <p class="text-sm text-gray-700">
+                    <span class="font-medium text-gray-900">Available Vouchers:</span>
+                    @if($remainingForAward === null)
+                        <span class="font-semibold text-green-700">Unlimited</span>
+                    @else
+                        <span class="font-semibold {{ $remainingForAward > 0 ? 'text-green-700' : 'text-red-600' }}">
+                            {{ number_format($remainingForAward) }}
+                        </span>
+                        <span class="text-gray-500">
+                            ({{ number_format($claimedForAward) }}/{{ number_format($usageLimit) }})
+                        </span>
+                    @endif
+                </p>
+                @if($noSlotsRemaining)
+                    <p class="mt-1 text-sm text-red-600">
+                        No vouchers remaining. You cannot award this voucher to more members.
+                    </p>
+                @elseif($selectionAtMax)
+                    <p class="mt-1 text-sm text-orange-700">
+                        Selection limit reached. Uncheck a member to choose someone else.
+                    </p>
+                @endif
+            </div>
+
+            <div class="mb-4">
+                <label for="memberSearch" class="block text-sm font-medium text-gray-700 mb-2">Search Members</label>
+                <input
+                    type="text"
+                    id="memberSearch"
+                    wire:model.live.debounce.300ms="memberSearch"
+                    placeholder="Search by name, email, or FIN..."
+                    @disabled($noSlotsRemaining)
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-0 focus:outline-none focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+            </div>
+
+            <div class="mb-4">
+                <label for="awardReason" class="block text-sm font-medium text-gray-700 mb-2">Reason (optional)</label>
+                <textarea
+                    id="awardReason"
+                    wire:model="awardReason"
+                    rows="2"
+                    placeholder="e.g. Volunteered at the community event"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-0 focus:outline-none focus:ring-orange-500 focus:border-orange-500 @error('awardReason') border-red-500 @enderror"
+                ></textarea>
+                @error('awardReason') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+            </div>
+
+            @error('selectedMemberIds') <div class="mb-4 text-red-500 text-sm">{{ $message }}</div> @enderror
+            @error('selectedMemberIds.*') <div class="mb-4 text-red-500 text-sm">{{ $message }}</div> @enderror
+
+            @if(count($selectedMemberIds) > 0)
+                <div class="mb-4">
+                    <div class="flex items-center gap-2 justify-between w-full mb-2">
+                        <p class="text-sm font-medium text-orange-500 ">
+                            {{ count($selectedMemberIds) }} member{{ count($selectedMemberIds) === 1 ? '' : 's' }} selected
+                        </p>
+                        <button
+                            type="button"
+                            wire:click="clearSelectedMembers"
+                            class="shrink-0 text-xs font-semibold text-orange-500 hover:text-orange-600"
+                        >
+                            Clear selection
+                        </button>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            @foreach($selectedMembers as $member)
+                                <span class="font-medium flex items-center gap-1 text-white border border-orange-500 rounded-full px-3 py-1.5 bg-orange-500 mr-1">
+                                    {{ $member->name }}
+                                    <button type="button" wire:click="removeSelectedMember({{ $member->id }})" class="cursor-pointer stroke-white hover:stroke-orange-200 hover:scale-110 transition-all duration-200">
+                                        <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </span>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            <div class="relative min-h-[8rem]">
+                <div
+                    wire:loading.flex
+                    wire:target="memberSearch"
+                    class="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/80"
+                >
+                    <div class="flex items-center gap-2 text-sm text-gray-600">
+                        <svg class="h-5 w-5 animate-spin text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Searching members...
+                    </div>
+                </div>
+
+                <div wire:loading.class="opacity-40" wire:target="memberSearch">
+                    @if($noSlotsRemaining)
+                        <div class="flex max-h-64 items-center justify-center overflow-y-auto rounded-lg border border-dashed border-red-200 bg-red-50 py-8 text-center">
+                            <div>
+                                <h3 class="text-sm font-medium text-red-800">No vouchers available</h3>
+                                <p class="mt-1 text-sm text-red-600">This voucher has reached its usage limit. New members cannot be awarded.</p>
+                            </div>
+                        </div>
+                    @elseif($awardableMembers && $awardableMembers->count() > 0)
+                        <div class="max-h-80 space-y-2 overflow-y-auto pr-1">
+                            @foreach($awardableMembers as $member)
+                                @php
+                                    $isSelected = in_array((int) $member->id, array_map('intval', $selectedMemberIds), true);
+                                    $checkboxDisabled = $selectionAtMax && ! $isSelected;
+                                @endphp
+                                <label
+                                    wire:key="award-member-{{ $member->id }}"
+                                    class="flex items-center p-3 rounded-lg border {{ $isSelected ? 'border-orange-300 bg-orange-50' : 'bg-gray-50 border-gray-200' }} {{ $checkboxDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 cursor-pointer' }}"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        wire:model.live="selectedMemberIds"
+                                        value="{{ $member->id }}"
+                                        @disabled($checkboxDisabled)
+                                        class="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500 disabled:cursor-not-allowed"
+                                    >
+                                    <div class="ml-3 flex items-center gap-2 justify-between w-full">
+                                        <div>
+                                            <p class="text-sm font-medium text-gray-900">{{ $member->name }}</p>
+                                            <p class="text-sm text-gray-500">{{ $member->email }}</p>
+                                        </div>
+                                        @if($member->fin)
+                                            <p class="text-xs text-gray-400 mt-0.5">FIN: {{ $member->fin }}</p>
+                                        @endif
+                                    </div>
+                                </label>
+                            @endforeach
+                        </div>
+                    @elseif($showAwardModal && trim($memberSearch) !== '')
+                        <div class="flex max-h-64 items-center justify-center overflow-y-auto py-8 text-center">
+                            <div>
+                                <h3 class="text-sm font-medium text-gray-900">No members found</h3>
+                                <p class="mt-1 text-sm text-gray-500">No eligible members match “{{ trim($memberSearch) }}”.</p>
+                            </div>
+                        </div>
+                    @elseif($showAwardModal)
+                        <div class="flex max-h-64 items-center justify-center overflow-y-auto rounded-lg border border-dashed border-gray-200 py-8 text-center">
+                            <div>
+                                <h3 class="text-sm font-medium text-gray-900">Search for members</h3>
+                                <p class="mt-1 text-sm text-gray-500">Start typing a name, email, or FIN, then check members to award in bulk.</p>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </x-slot>
+
+        <x-slot name="footer">
+            <x-secondary-button wire:click="closeAwardModal">
+                Cancel
+            </x-secondary-button>
+
+            <button
+                type="button"
+                class="ms-3 inline-flex items-center px-4 py-3 bg-orange-600 rounded-lg border border-transparent font-semibold text-xs text-white uppercase tracking-widest hover:bg-orange-500 focus:bg-orange-500 active:bg-orange-500 focus:outline-none focus:ring-0 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 transition ease-in-out duration-200"
+                wire:click="awardToMembers"
+                wire:loading.attr="disabled"
+                wire:target="awardToMembers"
+                @if(count($selectedMemberIds) === 0 || $noSlotsRemaining) disabled @endif
+            >
+                <span wire:loading.remove wire:target="awardToMembers">
+                    @if(count($selectedMemberIds) > 0)
+                        Award to {{ count($selectedMemberIds) }} Member{{ count($selectedMemberIds) === 1 ? '' : 's' }}
+                    @else
+                        Award Voucher
+                    @endif
+                </span>
+                <span wire:loading wire:target="awardToMembers">Awarding...</span>
+            </button>
+        </x-slot>
+    </x-dialog-modal>
 </div>
