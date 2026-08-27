@@ -61,8 +61,7 @@ class CreateNewUser implements CreatesNewUsers
             'fin' => ['required', 'string', 'size:4', 'regex:/^\d{3}[A-Z]$/i'],
             'age' => ['nullable', 'integer', 'min:0', 'max:120'],
             'gender' => ['nullable', 'string', 'max:20'],
-            'type_of_work' => ['nullable', 'string', 'max:255', 'in:Migrant worker,Migrant domestic worker,Others'],
-            'type_of_work_custom' => ['nullable', 'required_if:type_of_work,Others', 'string', 'max:255'],
+            'type_of_work' => ['nullable', 'string', 'max:255', 'in:Migrant worker,Migrant domestic worker'],
             // 'g-recaptcha-response' => config('services.recaptcha.secret_key') ? ['required', new ValidRecaptcha()] : ['nullable'],
             'password' => $this->passwordRules(),
             'terms' => Jetstream::hasTermsAndPrivacyPolicyFeature() ? ['accepted', 'required'] : '',
@@ -81,12 +80,6 @@ class CreateNewUser implements CreatesNewUsers
                 $email = $this->generateUserRandomEmail();
             }
 
-            // Determine type_of_work value
-            $typeOfWork = $input['type_of_work'] ?? 'Migrant worker';
-            if ($typeOfWork === 'Others' && !empty($input['type_of_work_custom'] ?? '')) {
-                $typeOfWork = trim($input['type_of_work_custom']);
-            }
-
             $userData = [
                 'name' => $input['name'],
                 'email' => $email,
@@ -95,7 +88,7 @@ class CreateNewUser implements CreatesNewUsers
                 'whatsapp_number' => $input['whatsapp_number'] ?? null,
                 'age' => $input['age'] ?? null,
                 'gender' => $input['gender'] ?? null,
-                'type_of_work' => $typeOfWork,
+                'type_of_work' => $input['type_of_work'] ?? 'Migrant worker',
             ];
 
             // Get FIN from request instead of auto-generating

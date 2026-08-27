@@ -146,79 +146,67 @@
                 </div>
             </div>
 
-            <div class="mt-4" x-data="{ typeOfWork: '{{ old('type_of_work', 'Migrant worker') }}' }">
-                <div class="flex items-center">
-                    <x-label for="type_of_work" value="{{ 
-                        match($lang) {
-                            'bang' => 'প্রকল্পের ধরণ',
-                            'zh' => '工作类型',
-                            'ta' => 'வேலை வகை',
-                            default => 'Type of Work',
-                        }
-                    }}" />
-                </div>
-                <select 
-                    id="type_of_work" 
-                    name="type_of_work" 
-                    x-model="typeOfWork"
-                    class="block mt-2 w-full rounded-full px-4 py-2 border border-orange-400 focus:border-orange-500 focus:ring-orange-500"
-                >
-                    <option value="Migrant worker" {{ old('type_of_work', 'Migrant worker') === 'Migrant worker' ? 'selected' : '' }}>
-                        {{ 
-                            match($lang) {
-                                'bang' => 'মিরাজ শ্রমিক',
-                                'zh' => '外劳',
-                                'ta' => 'புலம்பெயர்ந்த தொழிலாளி',
-                                default => 'Migrant worker',
-                            }
-                        }}
-                    </option>
-                    <option value="Migrant domestic worker" {{ old('type_of_work') === 'Migrant domestic worker' ? 'selected' : '' }}>
-                        {{ 
-                            match($lang) {
-                                'bang' => 'মিরাজ অভিবাসী শ্রমিক',
-                                'zh' => '外劳',
-                                'ta' => 'புலம்பெயர்ந்த வீட்டுப் பணியாளர்',
-                                default => 'Migrant domestic worker',
-                            }
-                        }}
-                    </option>
-                    <option value="Others" {{ old('type_of_work') === 'Others' ? 'selected' : '' }}>
-                        {{ 
-                            match($lang) {
-                                'bang' => 'অন্যান্য',
-                                'zh' => '其他',
-                                'ta' => 'மற்றவர்கள்',
-                                default => 'Others',
-                            }
-                        }}
-                    </option>
-                </select>
-                
-                <div x-show="typeOfWork === 'Others'" x-cloak x-transition class="mt-2">
-                    <input 
-                        id="type_of_work_custom" 
-                        class="block mt-1 w-full rounded-full px-4 py-2 border border-orange-400 focus:border-orange-500 focus:ring-orange-500" 
-                        type="text" 
-                        name="type_of_work_custom" 
-                        value="{{ old('type_of_work_custom') }}" 
-                        placeholder="{{ 
-                            match($lang) {
-                                'bang' => 'আপনার কাজের ধরণ বর্ণনা করুন',
-                                'zh' => '请描述您的工作类型',
-                                'ta' => 'உங்கள் வேலை வகையை விவரிக்கவும்',
-                                default => 'Specify your type of work',
-                            }
-                        }}"
-                        x-bind:required="typeOfWork === 'Others'"
-                    />
-                    @error('type_of_work_custom')
-                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
+            <div
+                class="mt-4"
+                x-data="{ typeOfWork: '{{ old('type_of_work', 'Migrant worker') }}' }"
+            >
+                <x-label for="type_of_work" value="{{ 
+                    match($lang) {
+                        'bang' => 'প্রকল্পের ধরণ',
+                        'zh' => '工作类型',
+                        'ta' => 'வேலை வகை',
+                        default => 'Type of Work',
+                    }
+                }}" />
+                <input type="hidden" id="type_of_work" name="type_of_work" x-model="typeOfWork" />
+                <div class="mt-2 grid grid-cols-2 rounded-2xl bg-orange-50 border border-orange-200" role="group" aria-label="Type of Work">
+                    <button
+                        type="button"
+                        @click="typeOfWork = 'Migrant worker'"
+                        :class="typeOfWork === 'Migrant worker'
+                            ? 'bg-orange-300 text-white shadow-sm border-orange-300'
+                            : 'bg-white text-gray-600 border-transparent hover:border-orange-300 hover:text-orange-600'"
+                        class="flex flex-col items-center justify-center gap-1.5 rounded-l-2xl border px-2 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+                        :aria-pressed="typeOfWork === 'Migrant worker'"
+                    >
+                        <img src="{{ asset('boy.svg') }}" alt="Boy" class="w-10 h-10">
+                        <span class="text-xs font-semibold leading-tight text-center">
+                            {{ 
+                                match($lang) {
+                                    'bang' => 'মিরাজ শ্রমিক',
+                                    'zh' => '外劳',
+                                    'ta' => 'புலம்பெயர்ந்த தொழிலாளி',
+                                    default => 'Migrant Worker',
+                                }
+                            }}
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        @click="typeOfWork = 'Migrant domestic worker'"
+                        :class="typeOfWork === 'Migrant domestic worker'
+                            ? 'bg-orange-300 text-white shadow-sm border-orange-300'
+                            : 'bg-white text-gray-600 border-transparent hover:border-orange-300 hover:text-orange-600'"
+                        class="flex flex-col items-center justify-center gap-1.5 rounded-r-2xl border px-2 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+                        :aria-pressed="typeOfWork === 'Migrant domestic worker'"
+                    >
+                        {{-- Girl icon --}}
+                        <img src="{{ asset('girl.svg') }}" alt="Girl" class="w-10 h-10">
+                        <span class="text-xs font-semibold leading-tight text-center">
+                            {{ 
+                                match($lang) {
+                                    'bang' => 'মিরাজ অভিবাসী শ্রমিক',
+                                    'zh' => '外劳',
+                                    'ta' => 'புலம்பெயர்ந்த வீட்டுப் பணியாளர்',
+                                    default => 'Migrant Domestic Worker',
+                                }
+                            }}
+                        </span>
+                    </button>
                 </div>
             </div>
 
-            <div class="mt-10">
+            <div class="mt-4">
                 <x-label for="password" value="{{ 
                     match($lang) {
                         'bang' => 'নিশ্চিত করুন',
@@ -487,7 +475,7 @@
                     type="submit"
                     x-bind:disabled="submitting"
                     :class="submitting ? 'opacity-80 cursor-not-allowed bg-gray-400 hover:bg-gray-400 active:bg-gray-400 focus:bg-gray-400 disabled:bg-gray-400 disabled:hover:bg-gray-400 disabled:active:bg-gray-400 disabled:focus:bg-gray-400 disabled:opacity-80 disabled:cursor-not-allowed' : ''"
-                    class="cursor-pointer ms-4 w-3/4 flex justify-center py-4 text-white bg-orange-500 hover:bg-orange-600 duration-300 transition-all rounded-full"
+                    class="cursor-pointer text-lg font-semibold uppercase tracking-wider ms-4 w-3/4 flex justify-center py-3 text-white bg-orange-500 hover:bg-orange-600 duration-300 transition-all rounded-full"
                 >
                     <span x-show="!submitting">
                         {{ 
