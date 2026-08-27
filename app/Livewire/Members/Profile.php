@@ -2,19 +2,38 @@
 
 namespace App\Livewire\Members;
 
+use App\Models\MemberActivity;
+use App\Models\PointLog;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
 class Profile extends Component
 {
+    private const RECENT_ACTIVITIES_LIMIT = 25;
+
+    private const RECENT_POINT_LOGS_LIMIT = 25;
+
     public string $qr_code;
+
     public User $member;
+
     public bool $showMessage = false;
+
     public ?string $selectedUserType = null;
+
     public ?string $selectedTypeOfWork = null;
+
     public ?string $selectedTypeOfWorkCustom = null;
+
+    /** @var int|null ID of member selected for "Update Mobile Number" modal. */
+    public ?int $updateMobileUserId = null;
+
+    protected $listeners = [
+        'updateMobileModalClosed' => 'closeUpdateMobileModal',
+    ];
 
     public function mount(string $qr_code): void
     {
@@ -25,6 +44,27 @@ class Profile extends Component
         $this->syncTypeOfWorkFromMember();
     }
 
+    public function openUpdateMobileModal(): void
+    {
+        if (! auth()->user()?->canUpdateMemberMobileNumber()) {
+            session()->flash('error', 'You do not have permission to update member mobile number.');
+            $this->showMessage = true;
+
+            return;
+        }
+
+        $this->updateMobileUserId = $this->member->id;
+    }
+
+    public function closeUpdateMobileModal(): void
+    {
+        $this->updateMobileUserId = null;
+        $this->loadMember();
+        if (session()->has('message') || session()->has('error')) {
+            $this->showMessage = true;
+        }
+    }
+
     #[On('activity-updated')]
     public function refreshMember(): void
     {
@@ -33,34 +73,40 @@ class Profile extends Component
 
     public function loadMember(): void
     {
-        // Remove user_type filter to allow viewing users even after type change
+        // Keep the Livewire-bound model lean — no heavy relation eager-loads.
+        // Recent activities / point logs are loaded with real SQL LIMIT in render().
         $this->member = User::query()
             ->where('qr_code', $this->qr_code)
-            ->with([
-                'memberActivities' => function ($q) {
-                    $q->with(['activityType', 'location', 'pointLog'])
-                        ->latest('activity_time')
-                        ->limit(25);
-                },
-                'pointLogs' => function ($q) {
-                    $q->with(['activityType', 'location'])
-                        ->latest('awarded_at')
-                        ->limit(25);
-                },
-                'eventRegistrations' => function ($q) {
-                    $q->with('event.location')
-                        ->latest('registered_at')
-                        ->limit(10);
-                },
-                'vouchers' => function ($q) {
-                    $q->latest('user_voucher.claimed_at')->limit(10);
-                },
-            ])
             ->firstOrFail();
-        
-        // Sync selected user type and type of work with member's current values
+
         $this->selectedUserType = $this->member->user_type;
         $this->syncTypeOfWorkFromMember();
+    }
+
+    /**
+     * @return Collection<int, MemberActivity>
+     */
+    protected function loadRecentActivities(): Collection
+    {
+        return MemberActivity::query()
+            ->where('user_id', $this->member->id)
+            ->with(['activityType', 'location', 'pointLog'])
+            ->latest('activity_time')
+            ->limit(self::RECENT_ACTIVITIES_LIMIT)
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, PointLog>
+     */
+    protected function loadRecentPointLogs(): Collection
+    {
+        return PointLog::query()
+            ->where('user_id', $this->member->id)
+            ->with(['activityType', 'location'])
+            ->latest('awarded_at')
+            ->limit(self::RECENT_POINT_LOGS_LIMIT)
+            ->get();
     }
 
     protected function syncTypeOfWorkFromMember(): void
@@ -80,9 +126,10 @@ class Profile extends Component
 
     public function updateTypeOfWork(): void
     {
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             session()->flash('error', 'You do not have permission to change type of work.');
             $this->showMessage = true;
+
             return;
         }
 
@@ -95,8 +142,9 @@ class Profile extends Component
 
         $current = $this->member->type_of_work ?? null;
         if (($newTypeOfWork ?? null) === $current) {
-            session()->flash('error', 'No change detected. Type of work is already set to ' . ($this->member->type_of_work ?? 'N/A') . '.');
+            session()->flash('error', 'No change detected. Type of work is already set to '.($this->member->type_of_work ?? 'N/A').'.');
             $this->showMessage = true;
+
             return;
         }
 
@@ -121,42 +169,40 @@ class Profile extends Component
 
     public function updateUserType(): void
     {
-        // Only allow admin users to change user type
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             session()->flash('error', 'You do not have permission to change user type.');
             $this->showMessage = true;
+
             return;
         }
 
-        // Check if user type has changed
-        if (!$this->selectedUserType || $this->selectedUserType === $this->member->user_type) {
-            session()->flash('error', 'No change detected. User type is already set to ' . $this->member->user_type . '.');
+        if (! $this->selectedUserType || $this->selectedUserType === $this->member->user_type) {
+            session()->flash('error', 'No change detected. User type is already set to '.$this->member->user_type.'.');
             $this->showMessage = true;
+
             return;
         }
 
-        // Validate user type
         $allowedTypes = ['admin', 'member', 'merchant_user'];
-        if (!in_array($this->selectedUserType, $allowedTypes)) {
+        if (! in_array($this->selectedUserType, $allowedTypes)) {
             session()->flash('error', 'Invalid user type selected.');
             $this->showMessage = true;
+
             return;
         }
 
-        // Prevent changing own user type
         if ($this->member->id === auth()->id()) {
             session()->flash('error', 'You cannot change your own user type.');
             $this->showMessage = true;
+
             return;
         }
 
         $oldUserType = $this->member->user_type;
         $newUserType = $this->selectedUserType;
 
-        // Update user type
         $this->member->update(['user_type' => $newUserType]);
 
-        // Log the action
         Log::info('User type changed by administrator', [
             'admin_id' => auth()->id(),
             'admin_name' => auth()->user()->name,
@@ -172,7 +218,7 @@ class Profile extends Component
 
         session()->flash('message', "User type changed from {$oldUserType} to {$newUserType} successfully.");
         $this->showMessage = true;
-        $this->loadMember(); // Reload member to reflect changes
+        $this->loadMember();
     }
 
     public function getTypeOfWorkOptions(): array
@@ -185,8 +231,8 @@ class Profile extends Component
         return view('livewire.members.profile', [
             'member' => $this->member,
             'typeOfWorkOptions' => $this->getTypeOfWorkOptions(),
+            'recentActivities' => $this->loadRecentActivities(),
+            'recentPointLogs' => $this->loadRecentPointLogs(),
         ])->layout('layouts.app');
     }
 }
-
-

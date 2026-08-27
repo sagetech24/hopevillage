@@ -87,8 +87,24 @@
                                     <p class="text-gray-900 font-mono">{{ $member->qr_code ?? '-' }}</p>
                                 </div>
                                 <div>
-                                    <label class="text-sm font-medium text-gray-500">WhatsApp</label>
-                                    <p class="text-gray-900">{{ $member->whatsapp_number ?? '-' }}</p>
+                                    <label class="text-sm font-medium text-gray-500">Mobile Number</label>
+                                    <div class="flex items-center gap-2">
+                                        <p class="text-gray-900">{{ $member->whatsapp_number ?? '-' }}</p>
+                                        @if(auth()->user()?->canUpdateMemberMobileNumber())
+                                            <button
+                                                type="button"
+                                                wire:click="openUpdateMobileModal"
+                                                class="text-orange-500 flex items-center cursor-pointer hover:text-orange-700 transition text-sm"
+                                                title="Edit mobile number"
+                                                aria-label="Edit mobile number"
+                                            >
+                                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                                </svg>
+                                                Edit
+                                            </button>
+                                        @endif
+                                    </div>
                                 </div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
@@ -118,7 +134,7 @@
                                         <div class="mt-1 flex gap-2">
                                             <select
                                                 wire:model.live="selectedTypeOfWork"
-                                                class="flex-1 px-3 py-2 text-gray-800 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                                                class="flex-1 px-3 py-2 text-gray-800 border border-gray-300 rounded-lg focus:ring-0 focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-sm"
                                             >
                                                 <option value="">— Not set —</option>
                                                 @foreach($typeOfWorkOptions as $option)
@@ -142,7 +158,7 @@
                                                     type="text"
                                                     wire:model="selectedTypeOfWorkCustom"
                                                     placeholder="Specify type of work"
-                                                    class="w-full px-3 py-2 text-gray-800 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                                                    class="w-full px-3 py-2 text-gray-800 border border-gray-300 rounded-lg focus:ring-0 focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-sm"
                                                 />
                                             </div>
                                         @endif
@@ -156,7 +172,7 @@
                                         <div class="mt-1 flex gap-2">
                                             <select
                                                 wire:model="selectedUserType"
-                                                class="flex-1 px-3 py-2 text-gray-800 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                                                class="flex-1 px-3 py-2 text-gray-800 border border-gray-300 rounded-lg focus:ring-0 focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-sm"
                                             >
                                                 <option value="member">Member</option>
                                                 <option value="admin">Administrator</option>
@@ -221,7 +237,7 @@
                                 @endif
                             </div>
                             <div class="space-y-3 overflow-y-auto max-h-[350px]">
-                                @forelse($member->memberActivities as $activity)
+                                @forelse($recentActivities as $activity)
                                     <div class="rounded-xl border border-gray-200 p-4 hover:bg-gray-50">
                                         <div class="flex items-start justify-between gap-4">
                                             <div>
@@ -269,7 +285,7 @@
                             <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Recent Point Logs</h3>
 
                             <div class="space-y-3 overflow-y-auto max-h-[350px]">
-                                @forelse($member->pointLogs as $log)
+                                @forelse($recentPointLogs as $log)
                                     <div class="rounded-xl border border-gray-200 p-4 hover:bg-gray-50">
                                         <div class="flex items-start justify-between gap-4">
                                             <div>
@@ -308,6 +324,10 @@
     @else
         @php abort(403, 'Unauthorized.'); @endphp
     @endcan
+
+    @if($updateMobileUserId)
+        <livewire:members.update-member-mobile :user-id="$updateMobileUserId" :key="'update-mobile-'.$updateMobileUserId" />
+    @endif
 </div>
 
 

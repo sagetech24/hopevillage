@@ -102,6 +102,41 @@ class User extends Authenticatable
     }
 
     /**
+     * Hard-coded superadmin allowlist (same emails used for Administrator Users).
+     *
+     * @return array<int, string>
+     */
+    public static function superAdminEmails(): array
+    {
+        return [
+            '+6584533959@hopevillage-user.sg',
+            'marnelle24@gmail.com',
+            'marnelle.apat@biblesociety.sg',
+            'karl.godinez@biblesociety.sg',
+        ];
+    }
+
+    /**
+     * Whether this user is a superadmin (email allowlist).
+     */
+    public function isSuperAdmin(): bool
+    {
+        return in_array($this->email, static::superAdminEmails(), true);
+    }
+
+    /**
+     * Whether this admin may update a member's mobile number.
+     */
+    public function canUpdateMemberMobileNumber(): bool
+    {
+        if (! $this->isAdmin()) {
+            return false;
+        }
+
+        return $this->isSuperAdmin() || $this->can('can_update_mobile_number_of_member');
+    }
+
+    /**
      * Check if user is member
      */
     public function isMember(): bool

@@ -57,6 +57,7 @@ class UserPermissions extends Component
         'update_user_permissions' => 'Can update user permissions of the Admin User',
         'reset_password' => 'Can Reset Password of the Member',
         'can_update_email_address_of_member' => 'Can Update Email address of the Member',
+        'can_update_mobile_number_of_member' => 'Can Update Mobile Number of the Member',
         'can_view_activities_of_member' => 'Can view the activities of the Member',
         'can_export_data' => 'Can export export data (CSV, Excel, PDF)',
         'can_add_user_to_merchant' => 'Can add USER to the merchant',
@@ -68,6 +69,7 @@ class UserPermissions extends Component
         'can_update_work_type' => 'Can update work type of the member',
         'can_update_user_type' => 'Can update user type of the user',
         'can_backup_database' => 'Can create database backup files',
+        'can_access_marketplace_cashier' => 'Can access Marketplace Cashier Page',
     ];
 
     public ?string $saveSuccessMessage = null;
