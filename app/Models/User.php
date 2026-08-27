@@ -40,6 +40,7 @@ class User extends Authenticatable
         'email',
         'password',
         'whatsapp_number',
+        'phone_verified_at',
         'user_type',
         'fin',
         'age',
@@ -85,6 +86,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'phone_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_verified' => 'boolean',
             'singpass_verified_at' => 'datetime',
@@ -117,7 +119,7 @@ class User extends Authenticatable
 
     /**
      * Whether this admin may open any marketplace admin screens (items list, orders, etc.).
-     * Any explicit marketplace.* permission counts; Cashier still requires marketplace.edit.
+     * Any explicit marketplace.* permission counts; Cashier uses canAccessMarketplaceCashier().
      */
     public function canAccessAdminMarketplace(): bool
     {
@@ -128,6 +130,15 @@ class User extends Authenticatable
             'marketplace.edit',
             'marketplace.delete',
         );
+    }
+
+    /**
+     * Whether this admin may use the Marketplace Cashier checkout page.
+     */
+    public function canAccessMarketplaceCashier(): bool
+    {
+        return $this->can('can_access_marketplace_cashier')
+            || $this->can('marketplace.edit');
     }
 
     // Relationships
@@ -148,8 +159,59 @@ class User extends Authenticatable
     public function adminVouchers(): BelongsToMany
     {
         return $this->belongsToMany(AdminVoucher::class, 'user_admin_voucher')
-            ->withPivot(['status', 'claimed_at', 'redeemed_at', 'redeemed_at_merchant_id'])
+            ->withPivot([
+                'status',
+                'claimed_at',
+                'redeemed_at',
+                'redeemed_at_merchant_id',
+                'voided_at',
+                'voided_by',
+                'void_reason',
+                'points_refunded',
+            ])
             ->withTimestamps();
+    }
+
+    /**
+     * Whether this member currently holds a non-voided admin voucher assignment.
+     */
+    public function hasActiveAdminVoucher(int $adminVoucherId): bool
+    {
+        return $this->adminVouchers()
+            ->where('admin_vouchers.id', $adminVoucherId)
+            ->wherePivotIn('status', ['claimed', 'redeemed'])
+            ->exists();
+    }
+
+    /**
+     * Attach or reactivate (from voided) an admin voucher as claimed.
+     *
+     * @param  array{status?: string, claimed_at?: mixed, redeemed_at?: mixed, redeemed_at_merchant_id?: mixed}  $attributes
+     */
+    public function claimAdminVoucherAssignment(AdminVoucher $adminVoucher, array $attributes = []): void
+    {
+        $pivot = array_merge([
+            'status' => 'claimed',
+            'claimed_at' => now(),
+            'redeemed_at' => null,
+            'redeemed_at_merchant_id' => null,
+            'voided_at' => null,
+            'voided_by' => null,
+            'void_reason' => null,
+            'points_refunded' => 0,
+        ], $attributes);
+
+        $existing = $this->adminVouchers()
+            ->where('admin_vouchers.id', $adminVoucher->id)
+            ->first();
+
+        if ($existing) {
+            $this->adminVouchers()->updateExistingPivot($adminVoucher->id, $pivot);
+
+            return;
+        }
+
+        $this->adminVouchers()->attach($adminVoucher->id, $pivot);
     }
 
     /**
@@ -165,7 +227,10 @@ class User extends Authenticatable
             ->count();
 
         $adminCount = AdminVoucher::valid()
-            ->whereDoesntHave('users', fn ($q) => $q->where('users.id', $this->id))
+            ->whereDoesntHave('users', function ($q) {
+                $q->where('users.id', $this->id)
+                    ->whereIn('user_admin_voucher.status', ['claimed', 'redeemed']);
+            })
             ->get(['id', 'visibility_to_type_of_work'])
             ->filter(fn (AdminVoucher $voucher) => $voucher->isVisibleToMember($this))
             ->count();

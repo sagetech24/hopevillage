@@ -88,7 +88,16 @@ class AdminVoucher extends Model implements HasMedia
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'user_admin_voucher')
-            ->withPivot(['status', 'claimed_at', 'redeemed_at', 'redeemed_at_merchant_id'])
+            ->withPivot([
+                'status',
+                'claimed_at',
+                'redeemed_at',
+                'redeemed_at_merchant_id',
+                'voided_at',
+                'voided_by',
+                'void_reason',
+                'points_refunded',
+            ])
             ->withTimestamps();
     }
 

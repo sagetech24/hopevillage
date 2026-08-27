@@ -57,7 +57,7 @@ class Index extends Component
                 $this->dispatch('notify', type: 'error', message: 'Voucher is not available.');
                 return;
             }
-            if ($user->adminVouchers()->where('admin_vouchers.id', $id)->exists()) {
+            if ($user->hasActiveAdminVoucher($id)) {
                 $this->dispatch('notify', type: 'info', message: 'You already claimed this admin voucher.');
                 return;
             }
@@ -185,7 +185,7 @@ class Index extends Component
             return;
         }
 
-        if ($user->adminVouchers()->where('admin_vouchers.id', $adminVoucherId)->exists()) {
+        if ($user->hasActiveAdminVoucher($adminVoucherId)) {
             $this->dispatch('notify', type: 'info', message: 'You already claimed this admin voucher.');
             return;
         }
@@ -199,10 +199,7 @@ class Index extends Component
             DB::transaction(function () use ($user, $adminVoucher) {
                 app(PointsService::class)->deductAdminVoucherClaim($user, $adminVoucher);
 
-                $user->adminVouchers()->attach($adminVoucher->id, [
-                    'status' => 'claimed',
-                    'claimed_at' => now(),
-                ]);
+                $user->claimAdminVoucherAssignment($adminVoucher);
 
                 $adminVoucher->increment('usage_count');
             });
@@ -285,7 +282,10 @@ class Index extends Component
         }
 
         $claimedVoucherIds = $user->vouchers()->pluck('vouchers.id')->all();
-        $claimedAdminVoucherIds = $user->adminVouchers()->pluck('admin_vouchers.id')->all();
+        $claimedAdminVoucherIds = $user->adminVouchers()
+            ->wherePivotIn('status', ['claimed', 'redeemed'])
+            ->pluck('admin_vouchers.id')
+            ->all();
 
         $merchantItems = Voucher::query()
             ->with('merchant')

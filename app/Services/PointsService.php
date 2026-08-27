@@ -33,6 +33,8 @@ class PointsService
 
     public const ACTIVITY_ADMIN_AWARD_ADMIN_VOUCHER = 'admin_award_admin_voucher';
 
+    public const ACTIVITY_ADMIN_VOUCHER_VOID = 'admin_void_admin_voucher';
+
     public const ACTIVITY_REFERRAL = 'member_referral';
 
     public const ACTIVITY_MARKETPLACE_REDEEM = 'marketplace_redeem';
@@ -475,6 +477,109 @@ class PointsService
     }
 
     /**
+     * Resolve how many points to refund when voiding an admin voucher assignment.
+     * Uses the original claim PointLog when present; awards (0-point) refund nothing.
+     */
+    public function resolveAdminVoucherRefundAmount(User $member, AdminVoucher $adminVoucher): int
+    {
+        $claimLog = PointLog::query()
+            ->where('user_id', $member->id)
+            ->where('points', '<', 0)
+            ->where('description', 'like', '%'.$adminVoucher->voucher_code.'%')
+            ->whereHas('activityType', fn ($q) => $q->where('name', self::ACTIVITY_ADMIN_VOUCHER_CLAIM))
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $claimLog) {
+            return 0;
+        }
+
+        $alreadyRefunded = PointLog::query()
+            ->where('user_id', $member->id)
+            ->where('points', '>', 0)
+            ->where('description', 'like', '%'.$adminVoucher->voucher_code.'%')
+            ->whereHas('activityType', fn ($q) => $q->where('name', self::ACTIVITY_ADMIN_VOUCHER_VOID))
+            ->exists();
+
+        if ($alreadyRefunded) {
+            return 0;
+        }
+
+        return abs((int) $claimLog->points);
+    }
+
+    /**
+     * Credit refund (when claim was paid) and always write a void audit PointLog.
+     * Caller must wrap in {@see DB::transaction}.
+     *
+     * @return int Points credited to the member wallet
+     */
+    public function refundAdminVoucherVoid(
+        User $member,
+        AdminVoucher $adminVoucher,
+        User $admin,
+        string $previousStatus,
+        ?string $reason = null,
+    ): int {
+        $refund = $this->resolveAdminVoucherRefundAmount($member, $adminVoucher);
+
+        $description = sprintf(
+            'Admin %s (#%d) voided %s voucher %s - %s for %s (#%d); refunded %d pts',
+            $admin->name,
+            $admin->id,
+            $previousStatus,
+            $adminVoucher->voucher_code,
+            $adminVoucher->name,
+            $member->name,
+            $member->id,
+            $refund,
+        );
+
+        if ($reason) {
+            $description .= ' — '.$reason;
+        }
+
+        if ($refund > 0) {
+            $this->creditPointsWithinTransaction(
+                $member,
+                $refund,
+                self::ACTIVITY_ADMIN_VOUCHER_VOID,
+                $description,
+            );
+
+            return $refund;
+        }
+
+        $activityType = $this->resolveActivityTypeForPointMovement(self::ACTIVITY_ADMIN_VOUCHER_VOID);
+
+        $config = PointSystemConfig::query()->firstOrCreate(
+            [
+                'activity_type_id' => $activityType->id,
+                'location_id' => null,
+                'amenity_id' => null,
+            ],
+            [
+                'points' => 0,
+                'description' => 'Admin voided admin voucher assignment',
+                'is_active' => true,
+            ],
+        );
+
+        PointLog::query()->create([
+            'user_id' => $member->id,
+            'point_system_config_id' => $config->id,
+            'activity_type_id' => $activityType->id,
+            'location_id' => null,
+            'amenity_id' => null,
+            'points' => 0,
+            'description' => $description,
+            'awarded_at' => now(),
+        ]);
+
+        return 0;
+    }
+
+    /**
      * Resolve activity type (creating marketplace redeem/refund types when missing).
      * Use before creating a {@see MemberActivity} row that will be linked from {@see PointLog}.
      */
@@ -514,6 +619,26 @@ class PointsService
                 ['name' => self::ACTIVITY_ADMIN_AWARD_ADMIN_VOUCHER],
                 [
                     'description' => 'Admin awarded admin voucher to member',
+                    'is_active' => true,
+                ],
+            );
+        }
+
+        if ($activityName === self::ACTIVITY_ADMIN_VOUCHER_VOID) {
+            return ActivityType::query()->firstOrCreate(
+                ['name' => self::ACTIVITY_ADMIN_VOUCHER_VOID],
+                [
+                    'description' => 'Admin voided admin voucher; points refunded when applicable',
+                    'is_active' => true,
+                ],
+            );
+        }
+
+        if ($activityName === self::ACTIVITY_ADMIN_VOUCHER_CLAIM) {
+            return ActivityType::query()->firstOrCreate(
+                ['name' => self::ACTIVITY_ADMIN_VOUCHER_CLAIM],
+                [
+                    'description' => 'Points spent claiming an admin voucher',
                     'is_active' => true,
                 ],
             );

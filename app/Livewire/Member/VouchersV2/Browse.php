@@ -66,7 +66,7 @@ class Browse extends Component
         }
 
         // Check if already claimed
-        if ($user->adminVouchers()->where('admin_vouchers.id', $adminVoucherId)->exists()) {
+        if ($user->hasActiveAdminVoucher($adminVoucherId)) {
             $this->dispatch('notify', type: 'info', message: 'You already claimed this admin voucher.');
             return;
         }
@@ -82,11 +82,8 @@ class Browse extends Component
                 // Deduct points
                 app(PointsService::class)->deductAdminVoucherClaim($user, $adminVoucher);
 
-                // Attach voucher to user
-                $user->adminVouchers()->attach($adminVoucher->id, [
-                    'status' => 'claimed',
-                    'claimed_at' => now(),
-                ]);
+                // Attach voucher to user (or reactivate a previously voided assignment)
+                $user->claimAdminVoucherAssignment($adminVoucher);
 
                 // Increment usage count
                 $adminVoucher->increment('usage_count');
@@ -156,7 +153,10 @@ class Browse extends Component
             return $adminVouchers->values();
         }
 
-        $claimedIds = $user->adminVouchers()->pluck('admin_vouchers.id')->all();
+        $claimedIds = $user->adminVouchers()
+            ->wherePivotIn('status', ['claimed', 'redeemed'])
+            ->pluck('admin_vouchers.id')
+            ->all();
 
         return $adminVouchers
             ->reject(fn (AdminVoucher $v) => in_array($v->id, $claimedIds, true))
