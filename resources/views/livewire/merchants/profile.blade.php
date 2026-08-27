@@ -1,7 +1,7 @@
 <div>
     @can('merchant.profile')
         <x-slot name="header">
-            <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+            <div class="max-w-6xl mx-auto sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center gap-4">
                         <h2 class="font-semibold md:text-xl text-2xl text-gray-800 leading-tight">
@@ -23,7 +23,7 @@
         </x-slot>
 
         <div class="pb-12 pt-6">
-            <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+            <div class="max-w-6xl mx-auto sm:px-6 lg:px-8">
                 <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-6 md:mx-0 mx-4">
                     <!-- Left Column - Merchant Details -->
                     <div class="lg:col-span-2 space-y-6">
@@ -136,7 +136,7 @@
                                 <!-- Merchant Vouchers Tab -->
                                 <div x-show="tab === 'merchant'" x-cloak>
                                     @if($merchant->vouchers->count() > 0)
-                                        <div class="space-y-3">
+                                        <div class="space-y-3 max-h-96 overflow-y-auto">
                                             @foreach($merchant->vouchers as $voucher)
                                                 @livewire('merchants.voucher-card', ['voucherCode' => $voucher->voucher_code, 'type' => 'merchant'], key('merchant-voucher-' . $voucher->id))
                                             @endforeach
