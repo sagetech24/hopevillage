@@ -101,20 +101,24 @@
 
                 <div x-show="activeTab === 'vouchers'" x-cloak>
                     <div class="my-4 md:px-0 px-4">
-                        <h3 class="text-xl font-bold text-gray-600">My Active Vouchers ({{ $vouchers->count() }})</h3>
+                        <h3 class="text-xl font-bold text-gray-600">My Vouchers ({{ $vouchers->count() }})</h3>
                         <p class="text-gray-600 font-nunito text-sm">Vouchers created and managed by you</p>
                     </div>
                     @if ($vouchers->count() > 0)
                         <div class="grid grid-cols-1 gap-4 items-stretch">
                             @foreach($vouchers as $voucher)
                                 @php
-                                    $isExpired = $voucher->valid_until && $voucher->valid_until->isPast();
-                                    $isInactive = !$voucher->is_active;
-                                    $isDisabled = $isExpired || $isInactive;
+                                    $statusCategory = $voucher->getDisplayStatusCategory();
+                                    $wrapperClass = match ($statusCategory) {
+                                        'active' => '',
+                                        'pending_approval' => 'ring-1 ring-yellow-300/80 rounded-lg',
+                                        'inactive', 'expired' => 'opacity-90 grayscale rounded-lg',
+                                        default => '',
+                                    };
                                 @endphp
-                                <div class="shrink-0 w-full relative {{ $isDisabled ? 'opacity-90 grayscale' : '' }}">
+                                <div class="shrink-0 w-full relative {{ $wrapperClass }}">
                                     <livewire:merchant.vouchers.card :voucher-code="$voucher->voucher_code" :key="'voucher-' . $voucher->id" />
-                                    @if($isDisabled)
+                                    @if(in_array($statusCategory, ['inactive', 'expired'], true))
                                         <div class="absolute inset-0 bg-black/10 rounded-lg z-10 pointer-events-none" aria-hidden="true"></div>
                                     @endif
                                 </div>
@@ -141,7 +145,12 @@
                                     $isDisabled = $isExpired || $isInactive;
                                 @endphp
                                 <div class="shrink-0 w-full relative {{ $isDisabled ? 'opacity-90 grayscale' : '' }}">
-                                    <livewire:merchants.voucher-card :voucher-code="$adminVoucher->voucher_code" type="admin" :key="'admin-voucher-' . $adminVoucher->id" />
+                                    <livewire:merchants.voucher-card
+                                        :voucher-code="$adminVoucher->voucher_code"
+                                        type="admin"
+                                        :open-as-modal="true"
+                                        :key="'admin-voucher-' . $adminVoucher->id"
+                                    />
                                     @if($isDisabled)
                                         <div class="absolute inset-0 bg-black/10 rounded-lg z-10 pointer-events-none" aria-hidden="true"></div>
                                     @endif

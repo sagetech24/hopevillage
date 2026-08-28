@@ -19,6 +19,7 @@
         'active' => 'border-green-500 text-green-600',
         'expired', 'full' => 'border-red-500 text-red-600',
         'pending approval' => 'border-yellow-500 text-yellow-700',
+        'inactive' => 'border-gray-400 text-gray-600',
         default => 'border-gray-300 text-gray-500',
     };
     if ($isAdmin) {

@@ -89,11 +89,15 @@ class Index extends Component
         }
 
         // Remove status filter - show all vouchers
-        // Sort by valid_until DESC (nulls will be last in MySQL, first in PostgreSQL)
-        // Use orderByRaw with CASE for better cross-database compatibility
-        $vouchers = $query->orderByRaw('CASE WHEN valid_until IS NULL THEN 1 ELSE 0 END')
-            ->orderBy('valid_until', 'desc')
-            ->get();
+        $vouchers = $query->get()
+            ->sortBy(function (Voucher $voucher) {
+                return [
+                    $voucher->getDisplayStatusSortOrder(),
+                    $voucher->valid_until ? -$voucher->valid_until->timestamp : PHP_INT_MIN,
+                    -$voucher->id,
+                ];
+            })
+            ->values();
 
         // Get admin vouchers associated with this merchant, sorted by valid_until DESC
         $adminVouchersQuery = AdminVoucher::whereHas('merchants', function ($q) use ($merchant) {

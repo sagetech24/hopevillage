@@ -22,16 +22,16 @@
                 <p class="text-gray-600 font-nunito text-sm">View voucher redemption history</p>
             </div>
 
-            <div x-data="{ activeTab: 'merchant' }">
+            <div x-data="{ activeTab: @entangle('activeTab').live }">
                 <div class="py-2">
                     <div class="flex items-center overflow-x-auto border-b border-gray-200">
                         <button type="button" @click="activeTab='merchant'" class="w-1/2 pb-3 text-md tracking-wider whitespace-nowrap transition-colors"
                             :class="activeTab === 'merchant' ? 'text-red-600 border-b-2 border-red-600 font-semibold' : 'text-gray-600'">
-                            My Vouchers ({{ $merchantRedemptions->count() }})
+                            My Vouchers ({{ $merchantCount }})
                         </button>
                         <button type="button" @click="activeTab='admin'" class="w-1/2 pb-3 text-md tracking-wider whitespace-nowrap transition-colors"
                             :class="activeTab === 'admin' ? 'text-red-600 border-b-2 border-red-600 font-semibold' : 'text-gray-600'">
-                            Admin Vouchers ({{ $adminRedemptions->count() }})
+                            Admin Vouchers ({{ $adminCount }})
                         </button>
                     </div>
                 </div>
@@ -100,33 +100,62 @@
                     @endif
                 </div>
 
-                <div x-show="activeTab === 'admin'" x-cloak>
-                    <div class="my-4">
-                        <h3 class="text-md font-bold text-gray-600">Admin Voucher Redemptions</h3>
-                        <p class="text-gray-600 font-nunito text-sm">Admin vouchers redeemed at your store</p>
+                <div x-show="activeTab === 'admin'" x-cloak class="relative min-h-[calc(100vh-14rem)]">
+                    <div wire:loading wire:target="activeTab" class="absolute inset-0 flex flex-col items-center justify-center text-center text-gray-500">
+                        <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500"></div>
+                        <p class="mt-4 text-sm font-medium">Loading admin voucher redemptions...</p>
                     </div>
-                    @if ($adminRedemptions->count() > 0)
-                        <div class="space-y-3">
-                            @foreach($adminRedemptions as $redemption)
-                                <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
-                                    <div class="flex flex-col gap-2">
-                                        <div class="flex justify-between items-start">
-                                            <p class="font-semibold text-gray-900">{{ $redemption->member_name }}</p>
-                                            <span class="text-xs text-gray-500 font-mono">{{ $redemption->voucher_code }}</span>
+
+                    <div wire:loading.remove wire:target="activeTab">
+                        <div class="my-4">
+                            <h3 class="text-md font-bold text-gray-600">Admin Voucher Redemptions</h3>
+                            <p class="text-gray-600 font-nunito text-sm">Admin vouchers redeemed at your store</p>
+                        </div>
+
+                        @if ($adminLoaded && $adminRedemptions->count() > 0)
+                            <div class="space-y-3">
+                                @foreach($adminRedemptions as $redemption)
+                                    <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                                        <div class="flex flex-col gap-2">
+                                            <div class="flex justify-between items-start">
+                                                <p class="font-semibold text-gray-900">{{ $redemption->member_name }}</p>
+                                                <span class="text-xs text-gray-500 font-mono">{{ $redemption->voucher_code }}</span>
+                                            </div>
+                                            <p class="text-sm text-gray-600">{{ $redemption->voucher_name }}</p>
+                                            <p class="text-xs text-gray-500">
+                                                Redeemed {{ \Carbon\Carbon::parse($redemption->redeemed_at)->format('M j, Y g:i A') }}
+                                            </p>
                                         </div>
-                                        <p class="text-sm text-gray-600">{{ $redemption->voucher_name }}</p>
-                                        <p class="text-xs text-gray-500">
-                                            Redeemed {{ \Carbon\Carbon::parse($redemption->redeemed_at)->format('M j, Y g:i A') }}
-                                        </p>
                                     </div>
+                                @endforeach
+                            </div>
+
+                            @if ($adminHasMore)
+                                <div class="mt-6 text-center">
+                                    <button
+                                        type="button"
+                                        wire:click="loadMoreAdminRedemptions"
+                                        wire:loading.attr="disabled"
+                                        wire:target="loadMoreAdminRedemptions"
+                                        class="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-orange-600 bg-white border border-orange-300 rounded-full hover:bg-orange-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                    >
+                                        <span wire:loading.remove wire:target="loadMoreAdminRedemptions">Load more</span>
+                                        <span wire:loading wire:target="loadMoreAdminRedemptions" class="inline-flex items-center gap-2">
+                                            <span class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></span>
+                                            Loading...
+                                        </span>
+                                    </button>
+                                    <p class="mt-2 text-xs text-gray-500">
+                                        Showing {{ $adminRedemptions->count() }} of {{ $adminCount }}
+                                    </p>
                                 </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <div class="md:mx-0 mx-4 text-center text-gray-300 text-lg py-12 border-dashed border-2 border-gray-300 rounded-lg p-4 bg-gray-200">
-                            <p class="text-gray-500 mb-4">No admin voucher redemptions yet.</p>
-                        </div>
-                    @endif
+                            @endif
+                        @elseif ($adminLoaded)
+                            <div class="md:mx-0 mx-4 text-center text-gray-300 text-lg py-12 border-dashed border-2 border-gray-300 rounded-lg p-4 bg-gray-200">
+                                <p class="text-gray-500 mb-4">No admin voucher redemptions yet.</p>
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
