@@ -101,6 +101,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Password Reset OTP Delivery
+    |--------------------------------------------------------------------------
+    |
+    | When true, email/SMS/WhatsApp APIs are not called during password reset.
+    | The OTP is written to the log instead. Defaults to true in local env.
+    |
+    */
+
+    'password_reset_skip_delivery' => env(
+        'PASSWORD_RESET_SKIP_DELIVERY',
+        env('APP_ENV') === 'local'
+    ),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Password Reset SMS Provider
+    |--------------------------------------------------------------------------
+    |
+    | Which SMS provider to use when a user chooses SMS for password reset.
+    | Supported values: infobip, twilio
+    |
+    */
+
+    'password_reset_sms_provider' => env('PASSWORD_RESET_SMS_PROVIDER', 'infobip'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Password Confirmation Timeout
     |--------------------------------------------------------------------------
     |

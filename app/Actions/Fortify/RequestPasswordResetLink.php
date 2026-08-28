@@ -2,153 +2,113 @@
 
 namespace App\Actions\Fortify;
 
+use App\DataTransferObjects\PasswordResetRequestResult;
+use App\Exceptions\PasswordResetDeliveryException;
+use App\Mail\PasswordResetOtpMail;
 use App\Models\User;
-use App\Services\TwilioWhatsAppService;
-use App\Services\WhatsAppCloudApiService;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Hash;
+use App\Services\PasswordResetOtpService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Password;
 
 class RequestPasswordResetLink
 {
-    protected $twilioService;
-    protected $whatsappCloudService;
+    protected const GENERIC_MESSAGE = 'If your account exists, we have sent password reset instructions.';
 
-    public function __construct()
-    {
-        $this->twilioService = new TwilioWhatsAppService();
-        $this->whatsappCloudService = new WhatsAppCloudApiService();
+    public function __construct(
+        protected ?PasswordResetOtpService $otpService = null,
+    ) {
+        $this->otpService ??= app(PasswordResetOtpService::class);
     }
 
     /**
-     * Handle the password reset request
+     * Handle the password reset request.
      */
-    public function __invoke(array $input): string
+    public function __invoke(array $input): PasswordResetRequestResult
     {
-        $resetMethod = $input['reset_method'] ?? 'whatsapp'; // 'email', 'whatsapp', or 'sms'
-        $identifier = $input['identifier'] ?? ''; // email or phone number
+        $resetMethod = $input['reset_method'] ?? 'email';
+        $identifier = $input['identifier'] ?? '';
 
-        // Find user by email or phone number
-        $user = null;
-        if ($resetMethod === 'email') {
-            $user = User::where('email', $identifier)->first();
-        } else {
-            // For both WhatsApp and SMS, search by whatsapp_number field
-            $normalizedNumber = $this->normalizeWhatsAppNumber($identifier);
-            $user = User::where('whatsapp_number', $identifier)
-                ->orWhere('whatsapp_number', $normalizedNumber)
-                ->first();
+        if ($resetMethod !== 'email') {
+            throw PasswordResetDeliveryException::message(
+                'Password reset via '.$resetMethod.' is temporarily unavailable. Please use email instead.'
+            );
         }
+
+        $user = User::where('email', $identifier)->first();
 
         if (! $user) {
-            // Return same message regardless to prevent user enumeration
-            return __('If your account exists, we have sent password reset instructions.');
+            return PasswordResetRequestResult::notSent(__(self::GENERIC_MESSAGE));
         }
 
-        if ($resetMethod === 'email') {
-            // Send Laravel's password reset link email (no temporary password)
-            $status = Password::sendResetLink(['email' => $user->email]);
-            if ($status === Password::RESET_LINK_SENT) {
-                $mailDriver = config('mail.default');
-                Log::info('Password reset link sent to user email', [
-                    'user_id' => $user->id,
-                    'email' => $user->email,
-                    'mail_driver' => $mailDriver,
-                ]);
-                if ($mailDriver === 'log') {
-                    Log::warning(
-                        'Mail driver is "log" so the email was only written to storage/logs/laravel.log and was NOT delivered to the inbox. Set MAIL_MAILER=smtp in .env to send real emails.',
-                        ['email' => $user->email]
-                    );
-                }
-            } else {
-                Log::warning('Password reset link not sent', [
-                    'user_id' => $user->id,
-                    'status' => $status,
-                ]);
-            }
-            return __('If your account exists, we have sent password reset instructions.');
-        }
-
-        // WhatsApp or SMS: generate temporary password and send via messaging
-        $temporaryPassword = Str::random(12);
-        $user->forceFill([
-            'password' => Hash::make($temporaryPassword),
-        ])->save();
-
-        $this->sendPasswordViaWhatsApp($user, $temporaryPassword, $resetMethod, $identifier);
-
-        return __('If your account exists, we have sent password reset instructions.');
+        return $this->sendEmailOtp($user);
     }
 
     /**
-     * Send temporary password via WhatsApp (used for both WhatsApp and SMS)
+     * Resend the password reset OTP for an in-progress session.
      */
-    protected function sendPasswordViaWhatsApp(User $user, string $password, string $method = 'whatsapp', string $identifier = ''): void
+    public function resendOtp(User $user, string $channel, string $identifier = ''): PasswordResetRequestResult
     {
-        // Use the user's stored whatsapp_number, or the provided identifier if different
-        $phoneNumber = $user->whatsapp_number;
-        
-        // If we have an identifier and it's different from user's stored number, use the identifier
-        // This handles cases where user provides a different number for SMS
-        if ($identifier) {
-            $normalizedIdentifier = $this->normalizeWhatsAppNumber($identifier);
-            $normalizedStored = $this->normalizeWhatsAppNumber($phoneNumber ?? '');
-            
-            // Use identifier if it's provided and different, or if user has no stored number
-            if (!$phoneNumber || ($normalizedIdentifier !== $normalizedStored && $normalizedIdentifier)) {
-                $phoneNumber = $normalizedIdentifier;
-            }
+        if ($channel !== 'email') {
+            throw PasswordResetDeliveryException::message(
+                'Resend is only available for email password reset at this time.'
+            );
         }
-        
-        if (!$phoneNumber) {
-            Log::warning('User has no phone number for password reset', [
+
+        return $this->sendEmailOtp($user);
+    }
+
+    protected function sendEmailOtp(User $user): PasswordResetRequestResult
+    {
+        if (! $user->email) {
+            throw PasswordResetDeliveryException::message(
+                'No email address is on file for this account. Please contact support.'
+            );
+        }
+
+        try {
+            $otp = $this->otpService->generateOtp($user, 'email');
+        } catch (\RuntimeException $e) {
+            throw PasswordResetDeliveryException::message($e->getMessage());
+        }
+
+        $code = $otp->makeVisible(['otp_code'])->otp_code;
+        $token = Password::broker()->createToken($user);
+        $expiresMinutes = $this->otpService->expiryMinutes();
+
+        $this->deliverEmailOtp($user, $code, $expiresMinutes);
+
+        return PasswordResetRequestResult::sent(
+            message: __(self::GENERIC_MESSAGE),
+            user: $user,
+            token: $token,
+            channel: 'email',
+            destination: $this->otpService->maskEmail($user->email),
+            expiresAt: $otp->expires_at,
+        );
+    }
+
+    protected function deliverEmailOtp(User $user, string $code, int $expiresMinutes): void
+    {
+        if (config('auth.password_reset_skip_delivery')) {
+            Log::info('Password reset OTP (delivery skipped)', [
                 'user_id' => $user->id,
-                'method' => $method
+                'email' => $user->email,
+                'code' => $code,
+                'expires_minutes' => $expiresMinutes,
             ]);
+
             return;
         }
 
-        $appName = config('app.name', 'Hope Village');
-        $methodLabel = $method === 'sms' ? 'SMS' : 'WhatsApp';
-        $message = "Your {$appName} temporary password is: {$password}\n\nPlease login and change your password immediately for security.";
+        try {
+            Mail::to($user->email)->send(new PasswordResetOtpMail($code, $expiresMinutes));
+        } catch (\Throwable $e) {
+            report($e);
 
-        // Try Twilio first, then WhatsApp Cloud API
-        if ($this->twilioService->enabled()) {
-            $result = $this->twilioService->sendMessage($phoneNumber, $message);
-            if ($result['ok']) {
-                Log::info("Password reset sent via Twilio {$methodLabel}", [
-                    'user_id' => $user->id,
-                    'method' => $method
-                ]);
-                return;
-            }
+            throw PasswordResetDeliveryException::message(
+                'We could not send the verification code to your email. Please try again later.'
+            );
         }
-
-        if ($this->whatsappCloudService->enabled()) {
-            $this->whatsappCloudService->sendMessage($phoneNumber, $message);
-            Log::info("Password reset sent via WhatsApp Cloud API ({$methodLabel})", [
-                'user_id' => $user->id,
-                'method' => $method
-            ]);
-        }
-    }
-
-    /**
-     * Normalize WhatsApp number format
-     */
-    protected function normalizeWhatsAppNumber(string $number): string
-    {
-        // Remove all non-digit characters except +
-        $normalized = preg_replace('/[^\d+]/', '', $number);
-        
-        // If doesn't start with +, add default country code (Singapore)
-        if (!str_starts_with($normalized, '+')) {
-            $normalized = '+65' . preg_replace('/\D/', '', $normalized);
-        }
-        
-        return $normalized;
     }
 }
-

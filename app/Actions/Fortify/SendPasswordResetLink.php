@@ -30,14 +30,17 @@ class SendPasswordResetLink
 
         $request->validate($rules);
 
-        // Use custom action for both methods
-        $action = new RequestPasswordResetLink();
-        $message = $action([
+        $action = app(RequestPasswordResetLink::class);
+        $result = $action([
             'reset_method' => $resetMethod,
             'identifier' => $identifier,
         ]);
 
-        return back()->with('status', $message);
+        if ($result->sent) {
+            return redirect()->route('password.reset.verify');
+        }
+
+        return back()->with('status', $result->message);
     }
 }
 

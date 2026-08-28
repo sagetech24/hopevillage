@@ -16,6 +16,13 @@ Route::get('/', function () {
 // Custom Password Reset Routes (override Fortify's default)
 Route::get('/forgot-password', [PasswordResetController::class, 'show'])->name('password.request');
 Route::post('/forgot-password', [PasswordResetController::class, 'store'])->name('password.email');
+Route::get('/forgot-password/verify-otp', [PasswordResetController::class, 'showVerifyOtp'])->name('password.reset.verify');
+Route::post('/forgot-password/verify-otp', [PasswordResetController::class, 'verifyOtp'])
+    ->middleware('throttle:10,1')
+    ->name('password.reset.verify.submit');
+Route::post('/forgot-password/resend-otp', [PasswordResetController::class, 'resendOtp'])
+    ->middleware('throttle:3,1')
+    ->name('password.reset.resend');
 
 // WhatsApp Validation Check (needs CSRF protection, so in web routes)
 Route::post('/api/check-whatsapp', [WhatsAppValidationController::class, 'check'])
@@ -164,6 +171,9 @@ Route::middleware([
 
     // Admin user permissions management
     Route::get('/admin/user-permissions', \App\Livewire\Admin\UserPermissions::class)->name('admin.user-permissions');
+
+    // Admin Users - Superadmin-only
+    Route::get('/admin/administrator-users', \App\Livewire\Admin\AdministratorUsers::class)->name('admin.administrator-users');
 });
 
 // Member Dashboard - Only accessible by member users
