@@ -7,6 +7,11 @@ use Livewire\Component;
 
 class RecentActivity extends Component
 {
+    public function placeholder()
+    {
+        return view('livewire.admin.partials.card-placeholder');
+    }
+
     public function getRecentActivitiesProperty()
     {
         return MemberActivity::with(['user', 'activityType', 'location'])

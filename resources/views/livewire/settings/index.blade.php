@@ -234,8 +234,15 @@
                                     >
                                         {{ __('Marketplace (admin)') }}
                                     </a>
+                                @elseif (auth()->user()?->canAccessMarketplaceCashier())
+                                    <a
+                                        href="{{ route('admin.marketplace.cashier') }}"
+                                        class="text-sm font-medium text-orange-600 hover:text-orange-800"
+                                    >
+                                        {{ __('Marketplace Cashier') }}
+                                    </a>
                                 @endif
-                                @unless (auth()->user()?->can('update_user_permissions') || auth()->user()?->canAccessAdminMarketplace())
+                                @unless (auth()->user()?->can('update_user_permissions') || auth()->user()?->canAccessAdminMarketplace() || auth()->user()?->canAccessMarketplaceCashier())
                                     <p class="text-sm text-gray-400">{{ __('No additional shortcuts for your account.') }}</p>
                                 @endunless
                             </div>

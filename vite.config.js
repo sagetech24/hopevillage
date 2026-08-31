@@ -83,7 +83,10 @@ export default defineConfig({
                 ],
             },
             workbox: {
-                // SW is emitted at /sw.js; precache entries are relative to public/build and must stay under /build/.
+                // Avoid precaching hashed Vite JS/CSS — filenames change every build and cause
+                // bad-precaching-response 404s when an old SW installs against a new deploy.
+                globPatterns: ['**/*.{webmanifest,ico,png,svg}'],
+                // SW is emitted at /sw.js; keep any matched build assets under /build/.
                 modifyURLPrefix: {
                     'assets/': 'build/assets/',
                 },
@@ -93,6 +96,7 @@ export default defineConfig({
                 // Plugin default is "index.html" (SPA). Laravel is server-rendered; that breaks navigations.
                 // Falsy value omits NavigationRoute in generated sw.js (workbox sw-template).
                 navigateFallback: null,
+                cleanupOutdatedCaches: true,
                 runtimeCaching: [
                     {
                         urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,

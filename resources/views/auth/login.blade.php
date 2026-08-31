@@ -12,7 +12,7 @@
             </div>
         @endsession
 
-        <form method="POST" action="{{ route('login') }}" class="mt-8 mb-4">
+        <form method="POST" action="{{ route('login') }}" class="mt-8 mb-4" x-data="{ submitting: false }" @submit="submitting = true">
             @csrf
 
             @php
@@ -117,16 +117,33 @@
             </div>
 
             <div class="flex items-center justify-center mt-6">
-                <x-button class="w-3/4 flex justify-center py-4 text-white bg-orange-500 hover:bg-orange-600 active:bg-orange-700 focus:bg-orange-600 rounded-full">
-                    {{ 
-                        match($lang) {
-                            'bang' => 'লগ ইন করুন',
-                            'zh' => '登录',
-                            'ta' => 'புகுபதிகை',
-                            default => 'Log in',
-                        }
-                    }}
-                </x-button>
+                <button 
+                    type="submit"
+                    x-bind:disabled="submitting"
+                    :class="submitting ? 'opacity-80 cursor-not-allowed bg-gray-400 hover:bg-gray-400 active:bg-gray-400 focus:bg-gray-400 disabled:bg-gray-400 disabled:hover:bg-gray-400 disabled:active:bg-gray-400 disabled:focus:bg-gray-400 disabled:opacity-80 disabled:cursor-not-allowed' : ''"
+                    class="cursor-pointer text-lg font-semibold uppercase tracking-wider w-3/4 flex justify-center py-3 text-white bg-orange-500 hover:bg-orange-600 duration-300 transition-all rounded-full"
+                >
+                    <span x-show="!submitting">
+                        {{ 
+                            match($lang) {
+                                'bang' => 'লগ ইন করুন',
+                                'zh' => '登录',
+                                'ta' => 'புகுபதிகை',
+                                default => 'Log in',
+                            }
+                        }}
+                    </span>
+                    <span x-show="submitting" x-cloak>
+                        {{ 
+                            match($lang) {
+                                'bang' => 'লগ ইন হচ্ছে...',
+                                'zh' => '登录中...',
+                                'ta' => 'உள்நுழைகிறது...',
+                                default => 'Logging in...',
+                            }
+                        }}
+                    </span>
+                </button>
             </div>
 
             <div class="flex items-center justify-center mt-4">

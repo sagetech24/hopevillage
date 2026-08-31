@@ -209,8 +209,8 @@
             <!-- Search and Filter -->
             @if(!$showPasswordReset)
                 <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6 md:mx-0 mx-4 mb-6">
-                    <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
-                        <div class="md:col-span-3">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                        <div class="lg:col-span-4">
                             <input
                                 type="text"
                                 wire:model.live.debounce.300ms="search"
@@ -218,7 +218,17 @@
                                 class="w-full px-4 py-2 border text-gray-700 border-gray-500 rounded-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                             >
                         </div>
-                        <div class="md:col-span-1">
+                        <div class="lg:col-span-2">
+                            <select
+                                wire:model.live="userTypeFilter"
+                                aria-label="User type"
+                                class="w-full px-4 py-2 border text-gray-700 border-gray-500 rounded-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                            >
+                                <option value="member">Members</option>
+                                <option value="merchant_user">Merchant User</option>
+                            </select>
+                        </div>
+                        <div class="lg:col-span-2">
                             <select
                                 wire:model.live="typeOfWorkFilter"
                                 class="w-full px-4 py-2 border text-gray-700 border-gray-500 rounded-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
@@ -230,7 +240,7 @@
                                 <option value="Others">Others</option>
                             </select>
                         </div>
-                        <div class="md:col-span-2 flex flex-wrap gap-2 items-center">
+                        <div class="lg:col-span-4 flex flex-wrap gap-2 items-center">
                             <select
                                 wire:model.live="pointsSort"
                                 class="flex-1 min-w-0 px-4 py-2 border text-gray-700 border-gray-500 rounded-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
@@ -250,7 +260,7 @@
                                     <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                                     </svg>
-                                    Export to CSV
+                                    Export
                                 </button>
                             @endcan
                         </div>
@@ -453,7 +463,7 @@
                                 @empty
                                     <tr>
                                         <td colspan="5" class="px-6 py-10 text-center text-sm text-gray-500">
-                                            No members found.
+                                            {{ $userTypeFilter === 'merchant_user' ? 'No merchant users found.' : 'No members found.' }}
                                         </td>
                                     </tr>
                                 @endforelse

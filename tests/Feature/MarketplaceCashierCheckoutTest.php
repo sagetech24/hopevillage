@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\Marketplace\Cashier;
+use App\Livewire\Marketplace\Index;
 use App\Models\Location;
 use App\Models\MarketplaceCategory;
 use App\Models\MarketplaceItem;
@@ -64,7 +65,7 @@ class MarketplaceCashierCheckoutTest extends TestCase
 
         Livewire::test(Cashier::class)
             ->call('addToBasket', $item->id)
-            ->call('beginCheckoutAll')
+            ->call('beginCheckoutSelected')
             ->assertSet('awaitingMemberPayment', true);
 
         $reloaded = Livewire::test(Cashier::class);
@@ -85,7 +86,7 @@ class MarketplaceCashierCheckoutTest extends TestCase
 
         $component = Livewire::test(Cashier::class)
             ->call('addToBasket', $item->id)
-            ->call('beginCheckoutAll')
+            ->call('beginCheckoutSelected')
             ->call('onQrCodeScanned', 'MEM-AAA');
 
         $component
@@ -96,6 +97,8 @@ class MarketplaceCashierCheckoutTest extends TestCase
         $this->assertNotNull($component->get('lastSaleMessage'));
         $this->assertSame(40, $memberA->fresh()->total_points);
         $this->assertSame(1, MarketplaceOrder::query()->where('user_id', $memberA->id)->count());
+
+        $component->assertDispatched('cashier-charge-result');
 
         $component->call('onQrCodeScanned', 'MEM-BBB');
 
@@ -112,7 +115,7 @@ class MarketplaceCashierCheckoutTest extends TestCase
 
         $component = Livewire::test(Cashier::class)
             ->call('addToBasket', $item->id)
-            ->call('beginCheckoutAll')
+            ->call('beginCheckoutSelected')
             ->call('onQrCodeScanned', 'MEM-AAA')
             ->call('onQrCodeScanned', 'MEM-AAA');
 
@@ -128,7 +131,7 @@ class MarketplaceCashierCheckoutTest extends TestCase
 
         Livewire::test(Cashier::class)
             ->call('addToBasket', $item->id)
-            ->call('beginCheckoutAll')
+            ->call('beginCheckoutSelected')
             ->set('memberQrInput', 'MEM-AAA')
             ->call('lookupMember')
             ->call('confirmPayment')
@@ -145,7 +148,7 @@ class MarketplaceCashierCheckoutTest extends TestCase
 
         $component = Livewire::test(Cashier::class)
             ->call('addToBasket', $item->id)
-            ->call('beginCheckoutAll')
+            ->call('beginCheckoutSelected')
             ->call('cancelPayment');
 
         $this->assertFalse($component->get('awaitingMemberPayment'));
@@ -160,12 +163,67 @@ class MarketplaceCashierCheckoutTest extends TestCase
 
         Livewire::test(Cashier::class)
             ->call('addToBasket', $item->id)
-            ->call('beginCheckoutAll')
+            ->call('beginCheckoutSelected')
             ->call('onQrCodeScanned', 'UNKNOWN')
             ->assertSet('awaitingMemberPayment', true)
-            ->assertSet('resolvedMemberId', null);
+            ->assertSet('resolvedMemberId', null)
+            ->assertDispatched('cashier-charge-result');
 
         $this->assertSame(0, MarketplaceOrder::query()->count());
+    }
+
+    public function test_insufficient_points_dispatches_a_fail_charge_result_instead_of_a_toast(): void
+    {
+        $item = $this->createItem();
+        $this->createMember('MEM-AAA', 5);
+
+        Livewire::test(Cashier::class)
+            ->call('addToBasket', $item->id)
+            ->call('beginCheckoutSelected')
+            ->call('onQrCodeScanned', 'MEM-AAA')
+            ->assertDispatched('cashier-charge-result')
+            ->assertSet('awaitingMemberPayment', true);
+
+        $this->assertSame(0, MarketplaceOrder::query()->count());
+    }
+
+    public function test_cashier_special_permission_allows_cashier_without_marketplace_module_access(): void
+    {
+        Permission::findOrCreate('can_access_marketplace_cashier', 'web');
+
+        $cashier = User::factory()->create(['user_type' => 'admin']);
+        $cashier->givePermissionTo('can_access_marketplace_cashier');
+
+        $this->actingAs($cashier);
+
+        $this->assertTrue($cashier->canAccessMarketplaceCashier());
+        $this->assertFalse($cashier->canAccessAdminMarketplace());
+
+        $this->get(route('admin.marketplace.cashier'))->assertOk();
+        Livewire::test(Cashier::class)->assertOk();
+    }
+
+    public function test_cashier_special_permission_does_not_grant_marketplace_admin_access(): void
+    {
+        Permission::findOrCreate('can_access_marketplace_cashier', 'web');
+
+        $cashier = User::factory()->create(['user_type' => 'admin']);
+        $cashier->givePermissionTo('can_access_marketplace_cashier');
+
+        $this->actingAs($cashier);
+
+        $this->get(route('admin.marketplace.index'))->assertForbidden();
+        Livewire::test(Index::class)->assertForbidden();
+    }
+
+    public function test_user_without_cashier_permission_cannot_access_cashier(): void
+    {
+        $user = User::factory()->create(['user_type' => 'admin']);
+
+        $this->actingAs($user);
+
+        $this->get(route('admin.marketplace.cashier'))->assertForbidden();
+        Livewire::test(Cashier::class)->assertForbidden();
     }
 
     protected function createItem(array $overrides = []): MarketplaceItem

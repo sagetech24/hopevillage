@@ -14,20 +14,28 @@ use Livewire\WithPagination;
 
 class Index extends Component
 {
-    use WithPagination;
     use PasswordValidationRules;
+    use WithPagination;
 
     public string $search = '';
+
     public string $typeOfWorkFilter = 'all'; // all | Migrant worker | Migrant domestic worker | Others
-    public string $userTypeFilter = 'member'; // kept for Livewire state compatibility; list always shows members only
+
+    public string $userTypeFilter = 'member'; // member | merchant_user
+
     public string $dateSort = 'desc'; // desc | asc
+
     public string $pointsSort = 'default'; // default | highest | lowest | top_20 | top_50
+
     public bool $showMessage = false;
-    
+
     // Password reset properties
     public ?int $selectedUserId = null;
+
     public string $password = '';
+
     public string $password_confirmation = '';
+
     public bool $showPasswordReset = false;
 
     /** @var int|null ID of member selected for "Update Email Address" modal. */
@@ -42,11 +50,11 @@ class Index extends Component
     public function mount(): void
     {
         $this->showMessage = session()->has('message') || session()->has('error');
-        
+
         // Check for password reset action in URL
         $action = request()->query('action');
         $userId = request()->query('userid');
-        
+
         if ($action === 'password-reset' && $userId) {
             $this->selectedUserId = (int) $userId;
             $this->showPasswordReset = true;
@@ -59,6 +67,11 @@ class Index extends Component
     }
 
     public function updatingTypeOfWorkFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingUserTypeFilter(): void
     {
         $this->resetPage();
     }
@@ -77,11 +90,12 @@ class Index extends Component
 
     public function delete($userId): void
     {
-        
+
         // Only allow admin users to delete members
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             session()->flash('error', 'You do not have permission to delete members.');
             $this->showMessage = true;
+
             return;
         }
 
@@ -99,7 +113,7 @@ class Index extends Component
 
         // Get admin user details
         $adminUser = auth()->user();
-        
+
         session()->flash('message', 'Member has been deleted successfully. The member can be restored if needed.');
         $this->showMessage = true;
 
@@ -121,6 +135,7 @@ class Index extends Component
         if (! auth()->user()->isAdmin()) {
             session()->flash('error', 'You do not have permission to update member email.');
             $this->showMessage = true;
+
             return;
         }
         $this->updateEmailUserId = $userId;
@@ -138,16 +153,17 @@ class Index extends Component
     public function triggerPasswordReset($userId)
     {
         // Only allow admin users to reset passwords
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             session()->flash('error', 'You do not have permission to reset passwords.');
             $this->showMessage = true;
+
             return;
         }
 
         // Redirect with URL parameters
         return $this->redirect(route('admin.members.index', [
             'action' => 'password-reset',
-            'userid' => $userId
+            'userid' => $userId,
         ]), navigate: true);
     }
 
@@ -157,7 +173,7 @@ class Index extends Component
         $this->password = '';
         $this->password_confirmation = '';
         $this->showPasswordReset = false;
-        
+
         // Redirect without URL parameters
         return $this->redirect(route('admin.members.index'), navigate: true);
     }
@@ -165,9 +181,10 @@ class Index extends Component
     public function resetPassword()
     {
         // Only allow admin users to reset passwords
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             session()->flash('error', 'You do not have permission to reset passwords.');
             $this->showMessage = true;
+
             return;
         }
 
@@ -222,7 +239,7 @@ class Index extends Component
     public function exportToCsv()
     {
         $members = $this->buildMembersQuery()->get();
-        $filename = 'members-' . now()->format('Y-m-d-His') . '.csv';
+        $filename = ($this->resolvedUserTypeFilter() === 'merchant_user' ? 'merchant-users-' : 'members-').now()->format('Y-m-d-His').'.csv';
 
         return Response::streamDownload(function () use ($members) {
             $handle = fopen('php://output', 'w');
@@ -232,6 +249,7 @@ class Index extends Component
                 'Email',
                 'WhatsApp',
                 'FIN',
+                'User Type',
                 'Type of Work',
                 'Points',
                 'Date Registered',
@@ -243,6 +261,7 @@ class Index extends Component
                     $member->email ?? '',
                     $member->whatsapp_number ?? '',
                     $member->fin ?? '',
+                    $member->user_type === 'merchant_user' ? 'Merchant User' : 'Member',
                     $member->type_of_work ?? 'N/A',
                     $member->total_points ?? 0,
                     $member->created_at?->format('d M Y g:i A') ?? 'N/A',
@@ -252,8 +271,16 @@ class Index extends Component
             fclose($handle);
         }, $filename, [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
+    }
+
+    /**
+     * @return 'member'|'merchant_user'
+     */
+    private function resolvedUserTypeFilter(): string
+    {
+        return $this->userTypeFilter === 'merchant_user' ? 'merchant_user' : 'member';
     }
 
     /**
@@ -262,10 +289,10 @@ class Index extends Component
     private function buildMembersQuery(): Builder
     {
         $query = User::query()
-            ->where('user_type', 'member');
+            ->where('user_type', $this->resolvedUserTypeFilter());
 
         if ($this->search !== '') {
-            $s = '%' . $this->search . '%';
+            $s = '%'.$this->search.'%';
             $query->where(function ($q) use ($s) {
                 $q->where('name', 'like', $s)
                     ->orWhere('email', 'like', $s)
@@ -319,5 +346,3 @@ class Index extends Component
         ])->layout('layouts.app');
     }
 }
-
-

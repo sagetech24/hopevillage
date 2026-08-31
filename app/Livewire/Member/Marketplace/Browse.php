@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Member\Marketplace;
 
-use App\Models\Location;
 use App\Models\MarketplaceCategory;
 use App\Models\MarketplaceItem;
 use Livewire\Component;
@@ -12,8 +11,6 @@ class Browse extends Component
     public string $search = '';
 
     public string $categoryFilter = '';
-
-    public string $locationFilter = '1';
 
     public function getItemsProperty()
     {
@@ -31,9 +28,6 @@ class Browse extends Component
         if ($this->categoryFilter !== '') {
             $q->where('marketplace_category_id', (int) $this->categoryFilter);
         }
-        if ($this->locationFilter !== '') {
-            $q->availableAtLocation((int) $this->locationFilter);
-        }
 
         return $q->get();
     }
@@ -43,7 +37,6 @@ class Browse extends Component
         return view('livewire.member.marketplace.browse', [
             'items' => $this->items,
             'categories' => MarketplaceCategory::query()->where('is_active', true)->orderBy('name')->get(),
-            'locations' => Location::query()->where('is_active', true)->orderBy('name')->get(),
         ])->layout('layouts.app', [
             'title' => __('Marketplace'),
         ]);

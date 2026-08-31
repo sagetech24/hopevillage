@@ -68,12 +68,19 @@
                                     </x-dropdown-link>
                                 @endcan
 
-                                @if (auth()->user()?->canAccessAdminMarketplace())
-                                    <x-dropdown-link href="{{ route('admin.marketplace.index') }}">
-                                        {{ __('Marketplace') }}
+                                @php
+                                    $allowedAdminUserEmails = [
+                                        '+6584533959@hopevillage-user.sg',
+                                        'marnelle24@gmail.com',
+                                        'marnelle.apat@biblesociety.sg',
+                                        'karl.godinez@biblesociety.sg',
+                                    ];
+                                @endphp
+                                @if (in_array(auth()->user()?->email, $allowedAdminUserEmails, true))
+                                    <x-dropdown-link href="{{ route('admin.administrator-users') }}">
+                                        {{ __('Administrator Users') }}
                                     </x-dropdown-link>
                                 @endif
-
                                 <x-dropdown-link href="{{ route('admin.api-documentation.index') }}">
                                     {{ __('API Documentation') }}
                                 </x-dropdown-link>
@@ -213,8 +220,12 @@
                         </x-responsive-nav-link>
                     @endcan
                     @if (auth()->user()?->canAccessAdminMarketplace())
-                        <x-responsive-nav-link href="{{ route('admin.marketplace.index') }}" :active="request()->routeIs('admin.marketplace*')">
+                        <x-responsive-nav-link href="{{ route('admin.marketplace.index') }}" :active="request()->routeIs('admin.marketplace*') && ! request()->routeIs('admin.marketplace.cashier')">
                             {{ __('Marketplace') }}
+                        </x-responsive-nav-link>
+                    @elseif (auth()->user()?->canAccessMarketplaceCashier())
+                        <x-responsive-nav-link href="{{ route('admin.marketplace.cashier') }}" :active="request()->routeIs('admin.marketplace.cashier')">
+                            {{ __('Marketplace Cashier') }}
                         </x-responsive-nav-link>
                     @endif
                     @can('point-system.view')
@@ -269,9 +280,18 @@
                                 {{ __('User Permissions') }}
                             </x-responsive-nav-link>
                         @endcan
-                        @if (auth()->user()?->canAccessAdminMarketplace())
-                            <x-responsive-nav-link href="{{ route('admin.marketplace.index') }}">
-                                {{ __('Marketplace') }}
+
+                        @php
+                            $allowedAdminUserEmails = [
+                                '+6584533959@hopevillage-user.sg',
+                                'marnelle24@gmail.com',
+                                'marnelle.apat@biblesociety.sg',
+                                'karl.godinez@biblesociety.sg',
+                            ];
+                        @endphp
+                        @if (in_array(auth()->user()?->email, $allowedAdminUserEmails, true))
+                            <x-responsive-nav-link href="{{ route('admin.administrator-users') }}">
+                                {{ __('Administrator Users') }}
                             </x-responsive-nav-link>
                         @endif
                         <x-responsive-nav-link href="{{ route('admin.api-documentation.index') }}">

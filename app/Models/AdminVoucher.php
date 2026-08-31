@@ -260,8 +260,98 @@ class AdminVoucher extends Model implements HasMedia
     }
 
     /**
-     * Register media collections for voucher images
+     * Whether the current time falls within the voucher validity window.
      */
+    public function isWithinValidityDate(): bool
+    {
+        $now = now();
+
+        if ($this->valid_from !== null) {
+            $validFrom = $this->valid_from instanceof \Carbon\Carbon
+                ? $this->valid_from
+                : \Carbon\Carbon::parse($this->valid_from);
+
+            if ($now->lt($validFrom)) {
+                return false;
+            }
+        }
+
+        if ($this->valid_until !== null) {
+            $validUntil = $this->valid_until instanceof \Carbon\Carbon
+                ? $this->valid_until
+                : \Carbon\Carbon::parse($this->valid_until);
+
+            if ($now->gt($validUntil)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Whether the voucher is past its valid-until date.
+     */
+    public function isBeyondValidityDate(): bool
+    {
+        if ($this->valid_until === null) {
+            return false;
+        }
+
+        $validUntil = $this->valid_until instanceof \Carbon\Carbon
+            ? $this->valid_until
+            : \Carbon\Carbon::parse($this->valid_until);
+
+        return now()->gt($validUntil);
+    }
+
+    /**
+     * Admin list grouping key: active, pending, or expired.
+     */
+    public function getListStatusGroup(): string
+    {
+        if ($this->isBeyondValidityDate()) {
+            return 'expired';
+        }
+
+        if ($this->isWithinValidityDate()) {
+            return $this->is_active ? 'active' : 'pending';
+        }
+
+        return 'expired';
+    }
+
+    public function getDisplayStatusCategory(): string
+    {
+        return match ($this->getListStatusGroup()) {
+            'active' => 'active',
+            'pending' => 'pending_approval',
+            default => 'expired',
+        };
+    }
+
+    public function getDisplayStatusLabel(): string
+    {
+        if ($this->getDisplayStatusCategory() === 'expired' && $this->getStatusReason() === 'Not Yet Valid') {
+            return 'Not Yet Valid';
+        }
+
+        return match ($this->getDisplayStatusCategory()) {
+            'active' => 'Active',
+            'pending_approval' => 'Pending Approval',
+            'expired' => 'Expired',
+        };
+    }
+
+    public function getDisplayStatusSortOrder(): int
+    {
+        return match ($this->getListStatusGroup()) {
+            'active' => 1,
+            'pending' => 2,
+            'expired' => 3,
+        };
+    }
+
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('image')

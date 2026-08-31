@@ -15,6 +15,13 @@ class Index extends Component
 
     public string $statusFilter = 'all';
 
+    public string $viewMode = 'list';
+
+    public bool $showFavoritesOnly = false;
+
+    /** @var array<int, int> */
+    public array $favoriteIds = [];
+
     public bool $showMessage = false;
 
     protected $paginationTheme = 'tailwind';
@@ -24,6 +31,17 @@ class Index extends Component
         abort_unless(auth()->user()?->canAccessAdminMarketplace(), 403);
 
         $this->showMessage = session()->has('message');
+        $this->viewMode = session('marketplace_view_mode', 'list');
+    }
+
+    public function setViewMode(string $mode): void
+    {
+        if (! in_array($mode, ['card', 'list'], true)) {
+            return;
+        }
+
+        $this->viewMode = $mode;
+        session(['marketplace_view_mode' => $mode]);
     }
 
     public function updatingSearch(): void
@@ -32,6 +50,11 @@ class Index extends Component
     }
 
     public function updatingStatusFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingShowFavoritesOnly(): void
     {
         $this->resetPage();
     }
@@ -101,7 +124,16 @@ class Index extends Component
             $query->where('is_active', false);
         }
 
-        $items = $query->orderByDesc('created_at')->paginate(9);
+        if ($this->showFavoritesOnly) {
+            $favoriteIds = array_values(array_filter(array_map('intval', $this->favoriteIds)));
+            if ($favoriteIds === []) {
+                $query->whereRaw('0 = 1');
+            } else {
+                $query->whereIn('id', $favoriteIds);
+            }
+        }
+
+        $items = $query->orderByDesc('created_at')->paginate(10);
 
         return view('livewire.marketplace.index', [
             'items' => $items,

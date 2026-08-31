@@ -38,17 +38,17 @@
                                     <input type="radio" wire:model.live="source" value="range" class="text-indigo-600" x-bind:disabled="isSpinning">
                                     <span class="text-sm text-gray-800 font-semibold">Set a range of numbers</span>
                                 </label>
-                                <label class="flex items-center gap-2" x-bind:class="isSpinning ? 'opacity-50 cursor-not-allowed' : ''">
+                                {{-- <label class="flex items-center gap-2" x-bind:class="isSpinning ? 'opacity-50 cursor-not-allowed' : ''">
                                     <input type="radio" wire:model.live="source" value="members_fin" class="text-indigo-600" x-bind:disabled="isSpinning">
                                     <span class="text-sm text-gray-800 font-semibold">All members FIN/NIRC</span>
                                 </label>
                                 <label class="flex items-center gap-2" x-bind:class="isSpinning ? 'opacity-50 cursor-not-allowed' : ''">
                                     <input type="radio" wire:model.live="source" value="members_qr_code" class="text-indigo-600" x-bind:disabled="isSpinning">
                                     <span class="text-sm text-gray-800 font-semibold">QR Code of the members</span>
-                                </label>
-                                <label class="flex items-center gap-2" x-bind:class="isSpinning ? 'opacity-50 cursor-not-allowed' : ''">
+                                </label> --}}
+                                <label class="flex items-start gap-2" x-bind:class="isSpinning ? 'opacity-50 cursor-not-allowed' : ''">
                                     <input type="radio" wire:model.live="source" value="event_attendees" class="text-indigo-600" x-bind:disabled="isSpinning">
-                                    <span class="text-sm text-gray-800 font-semibold">Event attendees (QR Code)</span>
+                                    <span class="text-sm text-gray-800 font-semibold">Event attendees</span>
                                 </label>
                             </div>
         
@@ -465,7 +465,7 @@
             class="modal"
             @click.away="closeModal()"
         >
-            <div class="modal-box text-center bg-white rounded-lg">
+            <div class="modal-box text-center bg-white rounded-lg min-w-5xl">
                 <h3 class="font-bold text-2xl mb-4 text-primary">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 mx-auto mb-3 text-yellow-500">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
@@ -483,15 +483,15 @@
                             {{-- {{ $winnerData['place'] ?? '' }}{{ isset($winnerData['place']) && $winnerData['place'] == 1 ? 'st' : (isset($winnerData['place']) && $winnerData['place'] == 2 ? 'nd' : (isset($winnerData['place']) && $winnerData['place'] == 3 ? 'rd' : 'th')) }} Place --}}
                         </p>
                         
-                        <p class="text-sm text-gray-600 mb-3">The winner is:</p>
-                        <p class="text-2xl font-bold text-slate-800 break-all px-4 mb-6">
+                        <p class="text-xl text-gray-600 mb-3">The winner is:</p>
+                        <p class="text-8xl max-w-2xl mx-auto font-bold text-slate-800 break-all px-4 mb-6">
                             {{ $member['name'] ?? $winnerData['value'] }}
                         </p>
                         
                         @if($member)
                             <div class="mt-6 p-4 bg-gray-50 rounded-lg text-left">
-                                <h4 class="font-bold text-gray-900 mb-3 text-sm">Member Details:</h4>
-                                <div class="space-y-2 text-sm">
+                                <div class="space-y-2 text-sm max-w-2xl mx-auto">
+                                    <h4 class="font-bold text-gray-900 mb-3 text-sm">Member Details:</h4>
                                     <div class="flex justify-between">
                                         <span class="text-gray-600 font-medium">Name:</span>
                                         <span class="text-gray-900 text-lg font-semibold">{{ $member['name'] ?? 'N/A' }}</span>
@@ -536,7 +536,7 @@
                 @else
                     <p class="text-gray-600 py-4">No winner selected.</p>
                 @endif
-                <div class="modal-action justify-center gap-3">
+                <div class="modal-action justify-center gap-3 max-w-2xl mx-auto">
                     <button 
                         wire:click="reSpin"
                         @click="closeModalWithoutUpdate()"

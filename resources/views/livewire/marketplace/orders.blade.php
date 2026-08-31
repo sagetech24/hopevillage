@@ -71,11 +71,11 @@
                             <div class="text-lg font-semibold text-orange-900">{{ number_format($productTrend['totals']['quantity']) }}</div>
                         </div>
                         <div class="rounded-lg bg-gray-50 px-4 py-2">
-                            <div class="text-xs font-medium text-gray-600 uppercase tracking-wide">{{ __('Points redeemed') }}</div>
+                            <div class="text-xs font-medium text-gray-600 uppercase tracking-wide">{{ __('Total Points') }}</div>
                             <div class="text-lg font-semibold text-gray-900">{{ number_format($productTrend['totals']['points']) }}</div>
                         </div>
                         <div class="rounded-lg bg-gray-50 px-4 py-2">
-                            <div class="text-xs font-medium text-gray-600 uppercase tracking-wide">{{ __('Amount cost') }}</div>
+                            <div class="text-xs font-medium text-gray-600 uppercase tracking-wide">{{ __('Total Points Cost') }}</div>
                             <div class="text-lg font-semibold text-gray-900">{{ __('SGD') }} {{ number_format($productTrend['totals']['amount'], 2) }}</div>
                         </div>
                     </div>
@@ -141,9 +141,9 @@
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8">{{ __('Rank') }}</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Quantity') }}</th>
-                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Point Value') }}</th>
-                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Amount') }}</th>
-                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Total Cost') }}</th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Total Points') }}</th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Cost per Point') }}</th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Total Points Cost') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
@@ -209,7 +209,19 @@
                                         <div class="text-sm font-semibold text-gray-900">#{{ $order->id }}</div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-md text-gray-900 font-medium">{{ $order->user?->name ?? __('Unknown') }}</div>
+                                        @if ($order->user?->qr_code)
+                                            <a
+                                                href="{{ route('admin.members.profile', $order->user->qr_code) }}"
+                                                title="{{ $order->user->name }}"
+                                                class="block max-w-[10rem] truncate text-md text-orange-700 font-medium hover:text-orange-800 hover:underline transition-all duration-300"
+                                            >
+                                                {{ $order->user->name }}
+                                            </a>
+                                        @else
+                                            <div class="max-w-[10rem] truncate text-md text-gray-900 font-medium" title="{{ $order->user?->name ?? __('Unknown') }}">
+                                                {{ $order->user?->name ?? __('Unknown') }}
+                                            </div>
+                                        @endif
                                         <div class="text-xs text-gray-500">{{ $order->user?->qr_code }}</div>
                                     </td>
                                     <td class="px-6 py-4">

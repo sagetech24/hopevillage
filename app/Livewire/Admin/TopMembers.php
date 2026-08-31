@@ -7,6 +7,11 @@ use Livewire\Component;
 
 class TopMembers extends Component
 {
+    public function placeholder()
+    {
+        return view('livewire.admin.partials.card-placeholder');
+    }
+
     public function getTopMembersProperty()
     {
         return User::where('user_type', 'member')

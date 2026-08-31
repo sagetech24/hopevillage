@@ -3,7 +3,7 @@
 </x-slot>
 
 <div class="max-w-md mx-auto min-h-screen pb-20 px-4 py-6 space-y-6">
-    <div>
+    <div class="space-y-2">
         <label class="relative block">
             <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor">
                 <path fill-rule="evenodd" d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z" clip-rule="evenodd" />
@@ -15,18 +15,10 @@
                 class="w-full pl-10 py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             />
         </label>
-    </div>
-    <div class="grid grid-cols-2 gap-2">
         <select wire:model.live="categoryFilter" class="w-full capitalize px-3 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm">
             <option value="">{{ __('All categories') }}</option>
             @foreach ($categories as $category)
                 <option value="{{ $category->id }}">{{ $category->name }}</option>
-            @endforeach
-        </select>
-        <select wire:model.live="locationFilter" class="w-full capitalize px-3 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm">
-            <option value="">{{ __('All locations') }}</option>
-            @foreach ($locations as $location)
-                <option value="{{ $location->id }}">{{ $location->name }}</option>
             @endforeach
         </select>
     </div>
@@ -44,7 +36,7 @@
     <div class="grid grid-cols-2 gap-2">
         @forelse ($items as $item)
             <div class="bg-white rounded-xl shadow border border-gray-300 overflow-hidden flex flex-col sm:flex-row">
-                <div class="relative sm:w-36 h-36 sm:h-auto shrink-0 bg-orange-400">
+                <div class="relative sm:w-36 h-52 sm:h-auto shrink-0 bg-orange-400">
                     @if ($item->image_url)
                         <img src="{{ $item->image_url }}" alt="" class="w-full h-full object-cover bg-orange-200">
                     @else

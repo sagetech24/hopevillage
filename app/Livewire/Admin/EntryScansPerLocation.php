@@ -4,16 +4,38 @@ namespace App\Livewire\Admin;
 
 use App\Models\ActivityType;
 use App\Models\MemberActivity;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class EntryScansPerLocation extends Component
 {
-    public function getActivityTypesDataProperty()
+    private const ATTEND_EVENT_TYPE_ID = 7;
+
+    private const CHART_COLORS = [
+        ['bg' => 'rgba(59, 130, 246, 0.8)', 'border' => 'rgb(59, 130, 246)'],
+        ['bg' => 'rgba(16, 185, 129, 0.8)', 'border' => 'rgb(16, 185, 129)'],
+        ['bg' => 'rgba(245, 158, 11, 0.8)', 'border' => 'rgb(245, 158, 11)'],
+        ['bg' => 'rgba(239, 68, 68, 0.8)', 'border' => 'rgb(239, 68, 68)'],
+        ['bg' => 'rgba(139, 92, 246, 0.8)', 'border' => 'rgb(139, 92, 246)'],
+        ['bg' => 'rgba(236, 72, 153, 0.8)', 'border' => 'rgb(236, 72, 153)'],
+        ['bg' => 'rgba(20, 184, 166, 0.8)', 'border' => 'rgb(20, 184, 166)'],
+        ['bg' => 'rgba(251, 146, 60, 0.8)', 'border' => 'rgb(251, 146, 60)'],
+        ['bg' => 'rgba(99, 102, 241, 0.8)', 'border' => 'rgb(99, 102, 241)'],
+        ['bg' => 'rgba(168, 85, 247, 0.8)', 'border' => 'rgb(168, 85, 247)'],
+    ];
+
+    public function placeholder()
     {
-        // Get all active activity types
+        return view('livewire.admin.partials.chart-placeholder', [
+            'title' => 'Activity Types Over Time',
+        ]);
+    }
+
+    public function getActivityTypesDataProperty(): array
+    {
         $activityTypes = ActivityType::where('is_active', true)
             ->orderBy('name')
-            ->get();
+            ->get(['id', 'name']);
 
         if ($activityTypes->isEmpty()) {
             return [
@@ -22,89 +44,43 @@ class EntryScansPerLocation extends Component
             ];
         }
 
-        // Get last 30 days of member activities
         $startDate = now()->subDays(29)->startOfDay();
         $endDate = now()->endOfDay();
 
-        // Get all activities in the last 30 days
-        $activities = MemberActivity::whereBetween('activity_time', [$startDate, $endDate])
-            ->with('activityType')
-            ->get();
+        $countsByTypeAndDate = $this->aggregatedActivityCounts($startDate, $endDate);
 
-        // De-duplicate member_attend_event (activity_type_id = 7) by user + metadata.event_id.
-        // Keep the latest row (activity_time, then id) for each combination.
-        $nonEventAttendActivities = $activities->where('activity_type_id', '!=', 7);
-        $dedupedEventAttendActivities = $activities
-            ->where('activity_type_id', 7)
-            ->sortByDesc(function ($activity) {
-                return sprintf(
-                    '%s-%010d',
-                    optional($activity->activity_time)->format('Y-m-d H:i:s.u') ?? '',
-                    $activity->id
-                );
-            })
-            ->unique(function ($activity) {
-                $eventId = data_get($activity, 'metadata.event_id');
-                return $activity->user_id . '|' . ($eventId ?? 'null');
-            });
-
-        $activities = $nonEventAttendActivities
-            ->concat($dedupedEventAttendActivities)
-            ->values();
-
-        // Create array with all 30 days, filling missing days with 0
+        $dateKeys = [];
         $labels = [];
         for ($i = 29; $i >= 0; $i--) {
-            $date = now()->subDays($i)->format('Y-m-d');
-            $dayName = now()->subDays($i)->format('M d');
-            $labels[] = $dayName;
+            $day = now()->subDays($i);
+            $dateKeys[] = $day->format('Y-m-d');
+            $labels[] = $day->format('M d');
         }
 
-        // Prepare datasets for each activity type
         $datasets = [];
-        $colors = [
-            ['bg' => 'rgba(59, 130, 246, 0.8)', 'border' => 'rgb(59, 130, 246)'],
-            ['bg' => 'rgba(16, 185, 129, 0.8)', 'border' => 'rgb(16, 185, 129)'],
-            ['bg' => 'rgba(245, 158, 11, 0.8)', 'border' => 'rgb(245, 158, 11)'],
-            ['bg' => 'rgba(239, 68, 68, 0.8)', 'border' => 'rgb(239, 68, 68)'],
-            ['bg' => 'rgba(139, 92, 246, 0.8)', 'border' => 'rgb(139, 92, 246)'],
-            ['bg' => 'rgba(236, 72, 153, 0.8)', 'border' => 'rgb(236, 72, 153)'],
-            ['bg' => 'rgba(20, 184, 166, 0.8)', 'border' => 'rgb(20, 184, 166)'],
-            ['bg' => 'rgba(251, 146, 60, 0.8)', 'border' => 'rgb(251, 146, 60)'],
-            ['bg' => 'rgba(99, 102, 241, 0.8)', 'border' => 'rgb(99, 102, 241)'],
-            ['bg' => 'rgba(168, 85, 247, 0.8)', 'border' => 'rgb(168, 85, 247)'],
-        ];
-
         $colorIndex = 0;
 
         foreach ($activityTypes as $activityType) {
-            $data = [];
-            
-            // Count activities for this type for each day
-            for ($i = 29; $i >= 0; $i--) {
-                $date = now()->subDays($i)->format('Y-m-d');
-                $count = $activities
-                    ->where('activity_type_id', $activityType->id)
-                    ->filter(function ($activity) use ($date) {
-                        return $activity->activity_time->format('Y-m-d') === $date;
-                    })
-                    ->count();
-                $data[] = $count;
+            $typeCounts = $countsByTypeAndDate[$activityType->id] ?? [];
+            $data = array_map(
+                fn (string $date) => (int) ($typeCounts[$date] ?? 0),
+                $dateKeys
+            );
+
+            if (array_sum($data) === 0) {
+                continue;
             }
 
-            // Only include activity types that have at least one activity
-            if (array_sum($data) > 0) {
-                $color = $colors[$colorIndex % count($colors)];
-                $datasets[] = [
-                    'label' => $activityType->name,
-                    'data' => $data,
-                    'borderColor' => $color['border'],
-                    'backgroundColor' => $color['bg'],
-                    'tension' => 0.4,
-                    'fill' => false,
-                ];
-                $colorIndex++;
-            }
+            $color = self::CHART_COLORS[$colorIndex % count(self::CHART_COLORS)];
+            $datasets[] = [
+                'label' => $activityType->name,
+                'data' => $data,
+                'borderColor' => $color['border'],
+                'backgroundColor' => $color['bg'],
+                'tension' => 0.4,
+                'fill' => false,
+            ];
+            $colorIndex++;
         }
 
         return [
@@ -118,5 +94,54 @@ class EntryScansPerLocation extends Component
         return view('livewire.admin.entry-scans-per-location', [
             'activityTypesData' => $this->activityTypesData,
         ]);
+    }
+
+    /**
+     * Aggregate daily counts in SQL. Non-attend rows are counted as-is;
+     * member_attend_event rows are de-duplicated by user + event (latest wins).
+     *
+     * @return array<int, array<string, int>>
+     */
+    protected function aggregatedActivityCounts($startDate, $endDate): array
+    {
+        $nonEventCounts = MemberActivity::query()
+            ->whereBetween('activity_time', [$startDate, $endDate])
+            ->where('activity_type_id', '!=', self::ATTEND_EVENT_TYPE_ID)
+            ->selectRaw('DATE(activity_time) as date, activity_type_id, COUNT(*) as count')
+            ->groupBy(DB::raw('DATE(activity_time)'), 'activity_type_id')
+            ->get();
+
+        $eventCounts = MemberActivity::query()
+            ->whereBetween('activity_time', [$startDate, $endDate])
+            ->where('activity_type_id', self::ATTEND_EVENT_TYPE_ID)
+            ->whereNotExists(function ($subQuery) {
+                $subQuery->selectRaw('1')
+                    ->from('member_activities as newer')
+                    ->whereColumn('newer.activity_type_id', 'member_activities.activity_type_id')
+                    ->whereColumn('newer.user_id', 'member_activities.user_id')
+                    ->whereRaw(
+                        "COALESCE(newer.event_id, JSON_UNQUOTE(JSON_EXTRACT(newer.metadata, '$.event_id')), 'null') = COALESCE(member_activities.event_id, JSON_UNQUOTE(JSON_EXTRACT(member_activities.metadata, '$.event_id')), 'null')"
+                    )
+                    ->where(function ($newerRowQuery) {
+                        $newerRowQuery->whereColumn('newer.activity_time', '>', 'member_activities.activity_time')
+                            ->orWhere(function ($sameTimeQuery) {
+                                $sameTimeQuery->whereColumn('newer.activity_time', 'member_activities.activity_time')
+                                    ->whereColumn('newer.id', '>', 'member_activities.id');
+                            });
+                    });
+            })
+            ->selectRaw('DATE(activity_time) as date, activity_type_id, COUNT(*) as count')
+            ->groupBy(DB::raw('DATE(activity_time)'), 'activity_type_id')
+            ->get();
+
+        $result = [];
+
+        foreach ($nonEventCounts->concat($eventCounts) as $row) {
+            $typeId = (int) $row->activity_type_id;
+            $date = (string) $row->date;
+            $result[$typeId][$date] = (int) $row->count;
+        }
+
+        return $result;
     }
 }

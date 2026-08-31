@@ -188,7 +188,7 @@ class Index extends Component
         ];
 
         foreach ($allVouchers as $voucher) {
-            $status = $this->getVoucherStatus($voucher);
+            $status = $voucher->getListStatusGroup();
             if (isset($groupedVouchers[$status])) {
                 $groupedVouchers[$status]->push($voucher);
             }
@@ -200,6 +200,12 @@ class Index extends Component
             'adminVouchers' => collect(),
             'groupedAdminVouchers' => collect(),
             'merchants' => $merchants,
+            'statusCounts' => [
+                'pending' => $groupedVouchers['pending']->count(),
+                'active' => $groupedVouchers['active']->count(),
+                'expired' => $groupedVouchers['expired']->count(),
+            ],
+            'pendingCount' => $groupedVouchers['pending']->count(),
         ])->layout('layouts.app');
     }
 
@@ -238,7 +244,7 @@ class Index extends Component
         ];
 
         foreach ($allAdminVouchers as $voucher) {
-            $status = $this->getAdminVoucherStatus($voucher);
+            $status = $voucher->getListStatusGroup();
             if (isset($groupedAdminVouchers[$status])) {
                 $groupedAdminVouchers[$status]->push($voucher);
             }
@@ -250,74 +256,12 @@ class Index extends Component
             'groupedVouchers' => collect(),
             'groupedAdminVouchers' => $groupedAdminVouchers,
             'merchants' => $merchants,
+            'statusCounts' => [
+                'pending' => $groupedAdminVouchers['pending']->count(),
+                'active' => $groupedAdminVouchers['active']->count(),
+                'expired' => $groupedAdminVouchers['expired']->count(),
+            ],
+            'pendingCount' => $groupedAdminVouchers['pending']->count(),
         ])->layout('layouts.app');
-    }
-
-    protected function getVoucherStatus($voucher)
-    {
-        $now = now();
-        
-        // Check if expired (out of validity date range)
-        // Check if valid_until is in the past
-        if ($voucher->valid_until) {
-            $validUntil = $voucher->valid_until instanceof \Carbon\Carbon 
-                ? $voucher->valid_until 
-                : \Carbon\Carbon::parse($voucher->valid_until);
-            if ($now->gt($validUntil)) {
-                return 'expired';
-            }
-        }
-        
-        // Check if valid_from is in the future (not yet valid)
-        if ($voucher->valid_from) {
-            $validFrom = $voucher->valid_from instanceof \Carbon\Carbon 
-                ? $voucher->valid_from 
-                : \Carbon\Carbon::parse($voucher->valid_from);
-            if ($now->lt($validFrom)) {
-                return 'expired'; // Not yet valid, treat as expired for grouping
-            }
-        }
-        
-        // Check if pending (is_active = false)
-        if (!$voucher->is_active) {
-            return 'pending';
-        }
-        
-        // Active: is_active = true AND within validity date range
-        return 'active';
-    }
-
-    protected function getAdminVoucherStatus($voucher)
-    {
-        $now = now();
-        
-        // Check if expired (out of validity date range)
-        // Check if valid_until is in the past
-        if ($voucher->valid_until) {
-            $validUntil = $voucher->valid_until instanceof \Carbon\Carbon 
-                ? $voucher->valid_until 
-                : \Carbon\Carbon::parse($voucher->valid_until);
-            if ($now->gt($validUntil)) {
-                return 'expired';
-            }
-        }
-        
-        // Check if valid_from is in the future (not yet valid)
-        if ($voucher->valid_from) {
-            $validFrom = $voucher->valid_from instanceof \Carbon\Carbon 
-                ? $voucher->valid_from 
-                : \Carbon\Carbon::parse($voucher->valid_from);
-            if ($now->lt($validFrom)) {
-                return 'expired'; // Not yet valid, treat as expired for grouping
-            }
-        }
-        
-        // Check if pending (is_active = false)
-        if (!$voucher->is_active) {
-            return 'pending';
-        }
-        
-        // Active: is_active = true AND within validity date range
-        return 'active';
     }
 }

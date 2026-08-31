@@ -12,12 +12,7 @@ class RecentEventsParticipants extends Component
 
     public function mount()
     {
-        // Set the first active location as default
-        $firstLocation = Location::where('is_active', true)
-            ->orderBy('name')
-            ->first();
-        
-        $this->selectedLocationId = $firstLocation?->id;
+        $this->selectedLocationId = $this->activeLocations->first()?->id;
     }
 
     public function updatedSelectedLocationId()
@@ -29,12 +24,12 @@ class RecentEventsParticipants extends Component
     {
         return Location::where('is_active', true)
             ->orderBy('name')
-            ->get();
+            ->get(['id', 'name']);
     }
 
     public function getRecentEventsProperty()
     {
-        if (!$this->selectedLocationId) {
+        if (! $this->selectedLocationId) {
             return [
                 'labels' => [],
                 'registered' => [],
@@ -69,7 +64,7 @@ class RecentEventsParticipants extends Component
             // Truncate event title to 3 words max
             $words = explode(' ', $event->title);
             if (count($words) > 5) {
-                $labels[] = implode(' ', array_slice($words, 0, 3)) . '...';
+                $labels[] = implode(' ', array_slice($words, 0, 3)).'...';
             } else {
                 $labels[] = $event->title;
             }

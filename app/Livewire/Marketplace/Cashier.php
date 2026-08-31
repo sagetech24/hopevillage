@@ -45,6 +45,9 @@ class Cashier extends Component
 
     public ?int $lastScannedAt = null;
 
+    /** @var array<int, int> */
+    public array $favoriteIds = [];
+
     protected $listeners = [
         'qr-code-scanned' => 'onQrCodeScanned',
     ];
@@ -53,7 +56,7 @@ class Cashier extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()?->can('marketplace.edit'), 403);
+        abort_unless(auth()->user()?->canAccessMarketplaceCashier(), 403);
 
         $this->restoreCashierState();
     }
@@ -72,7 +75,7 @@ class Cashier extends Component
             return;
         }
         if (is_array($value)) {
-            $value = $value[0] ?? reset($value);
+            $value = $value['value'] ?? $value[0] ?? reset($value);
         }
 
         $code = trim((string) $value);
@@ -81,14 +84,24 @@ class Cashier extends Component
         }
 
         if ($this->shouldIgnoreScan($code)) {
+            $this->dispatch('resume-qr-camera');
+
             return;
         }
 
         $this->rememberScan($code);
         $this->memberQrInput = $code;
-        $this->lookupMember();
+        $this->resolveMemberFromInput(notify: false);
 
         if (! $this->resolvedMemberId) {
+            $this->presentChargeResult(
+                success: false,
+                member: null,
+                balanceBefore: 0,
+                deducted: $this->pendingPointsTotal,
+                message: __('No member found with this QR code.'),
+            );
+
             return;
         }
 
@@ -96,6 +109,16 @@ class Cashier extends Component
     }
 
     public function lookupMember(): void
+    {
+        $this->resolveMemberFromInput(true);
+    }
+
+    public function updatedMemberQrInput(): void
+    {
+        $this->resolveMemberFromInput(notify: false);
+    }
+
+    protected function resolveMemberFromInput(bool $notify): void
     {
         if (! $this->awaitingMemberPayment) {
             return;
@@ -114,13 +137,19 @@ class Cashier extends Component
             ->first();
 
         $this->resolvedMemberId = $member?->id;
-        if (! $member) {
+        if (! $member && $notify) {
             $this->dispatch('notify', type: 'error', message: __('No member found with this QR code.'));
         }
     }
 
     public function addToBasket(int $itemId): void
     {
+        if ($this->awaitingMemberPayment) {
+            $this->addToPendingCheckout($itemId);
+
+            return;
+        }
+
         $item = MarketplaceItem::query()->availableForMembers()->find($itemId);
         if (! $item) {
             $this->dispatch('notify', type: 'error', message: __('This item is not available.'));
@@ -145,6 +174,8 @@ class Cashier extends Component
                     return;
                 }
                 $this->basket[$idx]['quantity'] = $newQty;
+                $this->basket[$idx]['selected'] = true;
+                $this->notifyBasketQuantityUpdated($item, $newQty);
 
                 return;
             }
@@ -160,8 +191,271 @@ class Cashier extends Component
             'id' => (string) Str::uuid(),
             'marketplace_item_id' => $itemId,
             'quantity' => 1,
-            'selected' => false,
+            'selected' => true,
         ];
+        $this->notifyBasketItemAdded($item);
+    }
+
+    public function addFavoriteToBasket(int $itemId): void
+    {
+        if ($this->awaitingMemberPayment) {
+            if ($this->pendingContainsItem($itemId)) {
+                return;
+            }
+            $this->addToPendingCheckout($itemId);
+
+            return;
+        }
+
+        if ($this->basketContainsItem($itemId)) {
+            return;
+        }
+
+        $this->addToBasket($itemId);
+    }
+
+    public function replaceBasketWithItem(int $itemId): void
+    {
+        if ($this->awaitingMemberPayment) {
+            $this->replacePendingWithItem($itemId);
+
+            return;
+        }
+
+        $item = MarketplaceItem::query()->availableForMembers()->find($itemId);
+        if (! $item) {
+            $this->dispatch('notify', type: 'error', message: __('This item is not available.'));
+
+            return;
+        }
+
+        if (! $item->hasStockFor(1)) {
+            $this->dispatch('notify', type: 'error', message: __('This item is out of stock.'));
+
+            return;
+        }
+
+        $this->basket = [[
+            'id' => (string) Str::uuid(),
+            'marketplace_item_id' => $itemId,
+            'quantity' => 1,
+            'selected' => true,
+        ]];
+
+        $this->dispatch('notify', type: 'success', message: __('Basket cleared. :item added.', [
+            'item' => $item->name,
+        ]));
+    }
+
+    public function addToPendingCheckout(int $itemId): void
+    {
+        if (! $this->awaitingMemberPayment) {
+            $this->addToBasket($itemId);
+
+            return;
+        }
+
+        $item = MarketplaceItem::query()->availableForMembers()->find($itemId);
+        if (! $item) {
+            $this->dispatch('notify', type: 'error', message: __('This item is not available.'));
+
+            return;
+        }
+
+        foreach ($this->pendingLines as $idx => $line) {
+            if ((int) $line['marketplace_item_id'] === $itemId) {
+                $newQty = (int) $line['quantity'] + 1;
+                if (! $item->hasStockFor($newQty)) {
+                    $this->dispatch('notify', type: 'error', message: __('Not enough stock for this item.'));
+
+                    return;
+                }
+                if ($item->hasDailyLimit() && $newQty > (int) $item->daily_limit_quantity) {
+                    $this->dispatch('notify', type: 'error', message: __('Daily limit for :item is :limit per member per day.', [
+                        'item' => $item->name,
+                        'limit' => number_format((int) $item->daily_limit_quantity),
+                    ]));
+
+                    return;
+                }
+                $this->pendingLines[$idx]['quantity'] = $newQty;
+                $this->syncCheckoutStateAfterPendingChange();
+                $this->notifyBasketQuantityUpdated($item, $newQty);
+
+                return;
+            }
+        }
+
+        if (! $item->hasStockFor(1)) {
+            $this->dispatch('notify', type: 'error', message: __('This item is out of stock.'));
+
+            return;
+        }
+
+        $this->pendingLines[] = [
+            'marketplace_item_id' => $itemId,
+            'quantity' => 1,
+        ];
+        $this->syncCheckoutStateAfterPendingChange();
+        $this->notifyBasketItemAdded($item);
+    }
+
+    public function replacePendingWithItem(int $itemId): void
+    {
+        if (! $this->awaitingMemberPayment) {
+            $this->replaceBasketWithItem($itemId);
+
+            return;
+        }
+
+        $item = MarketplaceItem::query()->availableForMembers()->find($itemId);
+        if (! $item) {
+            $this->dispatch('notify', type: 'error', message: __('This item is not available.'));
+
+            return;
+        }
+
+        if (! $item->hasStockFor(1)) {
+            $this->dispatch('notify', type: 'error', message: __('This item is out of stock.'));
+
+            return;
+        }
+
+        $this->pendingLines = [[
+            'marketplace_item_id' => $itemId,
+            'quantity' => 1,
+        ]];
+        $this->syncCheckoutStateAfterPendingChange();
+
+        $this->dispatch('notify', type: 'success', message: __('Checkout cleared. :item added.', [
+            'item' => $item->name,
+        ]));
+    }
+
+    public function incrementPendingQty(int $index): void
+    {
+        if (! isset($this->pendingLines[$index])) {
+            return;
+        }
+
+        $line = $this->pendingLines[$index];
+        $item = MarketplaceItem::query()->find($line['marketplace_item_id']);
+        if (! $item) {
+            return;
+        }
+
+        $newQty = (int) $line['quantity'] + 1;
+        if (! $item->hasStockFor($newQty)) {
+            $this->dispatch('notify', type: 'error', message: __('Not enough stock.'));
+
+            return;
+        }
+        if ($item->hasDailyLimit() && $newQty > (int) $item->daily_limit_quantity) {
+            $this->dispatch('notify', type: 'error', message: __('Daily limit for :item is :limit per member per day.', [
+                'item' => $item->name,
+                'limit' => number_format((int) $item->daily_limit_quantity),
+            ]));
+
+            return;
+        }
+
+        $this->pendingLines[$index]['quantity'] = $newQty;
+        $this->syncCheckoutStateAfterPendingChange();
+        $this->notifyBasketQuantityUpdated($item, $newQty);
+    }
+
+    public function decrementPendingQty(int $index): void
+    {
+        if (! isset($this->pendingLines[$index])) {
+            return;
+        }
+
+        $line = $this->pendingLines[$index];
+        $item = MarketplaceItem::query()->find($line['marketplace_item_id']);
+        if (! $item) {
+            return;
+        }
+
+        if ((int) $line['quantity'] <= 1) {
+            unset($this->pendingLines[$index]);
+            $this->pendingLines = array_values($this->pendingLines);
+            $this->syncCheckoutStateAfterPendingChange();
+            $this->notifyBasketItemRemoved($item);
+
+            return;
+        }
+
+        $newQty = (int) $line['quantity'] - 1;
+        $this->pendingLines[$index]['quantity'] = $newQty;
+        $this->syncCheckoutStateAfterPendingChange();
+        $this->notifyBasketQuantityUpdated($item, $newQty);
+    }
+
+    public function removePendingLine(int $index): void
+    {
+        if (! isset($this->pendingLines[$index])) {
+            return;
+        }
+
+        $item = MarketplaceItem::query()->find($this->pendingLines[$index]['marketplace_item_id']);
+        unset($this->pendingLines[$index]);
+        $this->pendingLines = array_values($this->pendingLines);
+        $this->syncCheckoutStateAfterPendingChange();
+
+        if ($item) {
+            $this->notifyBasketItemRemoved($item);
+        }
+    }
+
+    public function clearPendingCheckout(): void
+    {
+        if (! $this->awaitingMemberPayment) {
+            $this->clearBasket();
+
+            return;
+        }
+
+        $this->pendingLines = [];
+        $this->pendingPointsTotal = 0;
+        $this->awaitingMemberPayment = false;
+        $this->memberQrInput = '';
+        $this->resolvedMemberId = null;
+        $this->lastSaleMessage = null;
+        $this->lastScannedQr = null;
+        $this->lastScannedAt = null;
+    }
+
+    protected function pendingContainsItem(int $itemId): bool
+    {
+        foreach ($this->pendingLines as $line) {
+            if ((int) $line['marketplace_item_id'] === $itemId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function syncCheckoutStateAfterPendingChange(): void
+    {
+        $this->recalculatePendingPointsTotal();
+        $this->clearResolvedMember();
+
+        if ($this->pendingLines === []) {
+            $this->awaitingMemberPayment = false;
+            $this->pendingPointsTotal = 0;
+        }
+    }
+
+    protected function basketContainsItem(int $itemId): bool
+    {
+        foreach ($this->basket as $line) {
+            if ((int) $line['marketplace_item_id'] === $itemId) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function incrementQty(string $lineId): void
@@ -189,6 +483,7 @@ class Cashier extends Component
                 return;
             }
             $this->basket[$idx]['quantity'] = $newQty;
+            $this->notifyBasketQuantityUpdated($item, $newQty);
 
             return;
         }
@@ -200,11 +495,18 @@ class Cashier extends Component
             if ($line['id'] !== $lineId) {
                 continue;
             }
+            $item = MarketplaceItem::query()->find($line['marketplace_item_id']);
+            if (! $item) {
+                return;
+            }
             if ((int) $line['quantity'] <= 1) {
                 unset($this->basket[$idx]);
                 $this->basket = array_values($this->basket);
+                $this->notifyBasketItemRemoved($item);
             } else {
-                $this->basket[$idx]['quantity'] = (int) $line['quantity'] - 1;
+                $newQty = (int) $line['quantity'] - 1;
+                $this->basket[$idx]['quantity'] = $newQty;
+                $this->notifyBasketQuantityUpdated($item, $newQty);
             }
 
             return;
@@ -213,6 +515,17 @@ class Cashier extends Component
 
     public function removeLine(string $lineId): void
     {
+        foreach ($this->basket as $line) {
+            if ($line['id'] !== $lineId) {
+                continue;
+            }
+            $item = MarketplaceItem::query()->find($line['marketplace_item_id']);
+            if ($item) {
+                $this->notifyBasketItemRemoved($item);
+            }
+            break;
+        }
+
         $this->basket = array_values(array_filter($this->basket, fn ($line) => $line['id'] !== $lineId));
     }
 
@@ -229,17 +542,6 @@ class Cashier extends Component
 
             return;
         }
-        $this->moveLinesToPayment($ids);
-    }
-
-    public function beginCheckoutAll(): void
-    {
-        if ($this->basket === []) {
-            $this->dispatch('notify', type: 'error', message: __('Basket is empty.'));
-
-            return;
-        }
-        $ids = array_column($this->basket, 'id');
         $this->moveLinesToPayment($ids);
     }
 
@@ -322,7 +624,7 @@ class Cashier extends Component
                     'id' => (string) Str::uuid(),
                     'marketplace_item_id' => $itemId,
                     'quantity' => $qty,
-                    'selected' => false,
+                    'selected' => true,
                 ];
             }
         }
@@ -345,7 +647,7 @@ class Cashier extends Component
     public function clearBasket(): void
     {
         if ($this->awaitingMemberPayment) {
-            $this->dispatch('notify', type: 'error', message: __('Cancel payment first.'));
+            $this->clearPendingCheckout();
 
             return;
         }
@@ -376,6 +678,28 @@ class Cashier extends Component
         return $q->limit(80)->get();
     }
 
+    /**
+     * @return \Illuminate\Support\Collection<int, MarketplaceItem>
+     */
+    protected function favoriteItems()
+    {
+        $ids = array_values(array_filter(array_map('intval', $this->favoriteIds)));
+        if ($ids === []) {
+            return collect();
+        }
+
+        $items = MarketplaceItem::query()
+            ->with('category')
+            ->availableForMembers()
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id');
+
+        return collect($ids)
+            ->map(fn (int $id) => $items->get($id))
+            ->filter();
+    }
+
     public function render()
     {
         $basketRows = [];
@@ -395,9 +719,11 @@ class Cashier extends Component
         $basketTotal = array_sum(array_column($basketRows, 'line_points'));
 
         $pendingLabels = [];
-        foreach ($this->pendingLines as $pl) {
+        foreach ($this->pendingLines as $idx => $pl) {
             $item = MarketplaceItem::query()->find($pl['marketplace_item_id']);
             $pendingLabels[] = [
+                'index' => $idx,
+                'marketplace_item_id' => (int) $pl['marketplace_item_id'],
                 'name' => $item?->name ?? '#'.$pl['marketplace_item_id'],
                 'qty' => $pl['quantity'],
                 'points' => ($item ? (int) $item->points_cost * (int) $pl['quantity'] : 0),
@@ -429,6 +755,10 @@ class Cashier extends Component
             'basketTotal' => $basketTotal,
             'pendingLabels' => $pendingLabels,
             'dailyLimitWarnings' => $dailyLimitWarnings,
+            'favoriteItems' => $this->favoriteItems(),
+            'checkoutItemIds' => $this->awaitingMemberPayment
+                ? array_map(fn (array $line) => (int) $line['marketplace_item_id'], $this->pendingLines)
+                : array_map(fn (array $line) => (int) $line['marketplace_item_id'], $this->basket),
             'categories' => MarketplaceCategory::query()->where('is_active', true)->orderBy('name')->get(),
             'locations' => Location::query()->where('is_active', true)->orderBy('name')->get(),
             'resolvedMember' => $this->resolvedMemberId ? User::query()->find($this->resolvedMemberId) : null,
@@ -451,7 +781,13 @@ class Cashier extends Component
 
         $member = User::query()->find($this->resolvedMemberId);
         if (! $member) {
-            $this->dispatch('notify', type: 'error', message: __('Member not found.'));
+            $this->presentChargeResult(
+                success: false,
+                member: null,
+                balanceBefore: 0,
+                deducted: $this->pendingPointsTotal,
+                message: __('Member not found.'),
+            );
             $this->clearResolvedMember();
 
             return;
@@ -462,8 +798,10 @@ class Cashier extends Component
             return;
         }
 
+        $balanceBefore = (int) $member->total_points;
+        $chargedPoints = $this->pendingPointsTotal;
+
         try {
-            $chargedPoints = $this->pendingPointsTotal;
             MarketplaceOrder::recordCashierSale(
                 $member,
                 auth()->user(),
@@ -477,10 +815,21 @@ class Cashier extends Component
                 'name' => $member->name,
                 'points' => number_format($chargedPoints),
             ]);
-            $this->dispatch('notify', type: 'success', message: $this->lastSaleMessage);
+            $this->presentChargeResult(
+                success: true,
+                member: $member,
+                balanceBefore: $balanceBefore,
+                deducted: $chargedPoints,
+            );
             $this->clearResolvedMember();
         } catch (\Throwable $e) {
-            $this->dispatch('notify', type: 'error', message: $e->getMessage());
+            $this->presentChargeResult(
+                success: false,
+                member: $member,
+                balanceBefore: $balanceBefore,
+                deducted: $chargedPoints,
+                message: $e->getMessage(),
+            );
             $this->clearResolvedMember();
         } finally {
             $lock->release();
@@ -491,6 +840,44 @@ class Cashier extends Component
     {
         $this->memberQrInput = '';
         $this->resolvedMemberId = null;
+    }
+
+    protected function presentChargeResult(
+        bool $success,
+        ?User $member,
+        int $balanceBefore,
+        int $deducted,
+        ?string $message = null,
+    ): void {
+        $this->dispatch('cashier-charge-result',
+            success: $success,
+            hasMember: $member !== null,
+            memberName: $member?->name,
+            balanceBefore: $balanceBefore,
+            deducted: $deducted,
+            remaining: $success ? max(0, $balanceBefore - $deducted) : $balanceBefore,
+            message: $message,
+            items: $this->pendingTransactionItems(),
+        );
+    }
+
+    /**
+     * @return array<int, array{name: string, qty: int, points: int}>
+     */
+    protected function pendingTransactionItems(): array
+    {
+        $items = [];
+        foreach ($this->pendingLines as $pl) {
+            $item = MarketplaceItem::query()->find($pl['marketplace_item_id']);
+            $qty = (int) $pl['quantity'];
+            $items[] = [
+                'name' => $item?->name ?? '#'.$pl['marketplace_item_id'],
+                'qty' => $qty,
+                'points' => $item ? (int) $item->points_cost * $qty : 0,
+            ];
+        }
+
+        return $items;
     }
 
     protected function rememberScan(string $code): void
@@ -620,5 +1007,27 @@ class Cashier extends Component
             $total += (int) $item->points_cost * (int) $pl['quantity'];
         }
         $this->pendingPointsTotal = $total;
+    }
+
+    protected function notifyBasketItemAdded(MarketplaceItem $item): void
+    {
+        $this->dispatch('notify', type: 'success', message: __(':item added to basket.', [
+            'item' => $item->name,
+        ]));
+    }
+
+    protected function notifyBasketQuantityUpdated(MarketplaceItem $item, int $quantity): void
+    {
+        $this->dispatch('notify', type: 'success', message: __(':item quantity updated to :qty.', [
+            'item' => $item->name,
+            'qty' => $quantity,
+        ]));
+    }
+
+    protected function notifyBasketItemRemoved(MarketplaceItem $item): void
+    {
+        $this->dispatch('notify', type: 'success', message: __(':item removed from basket.', [
+            'item' => $item->name,
+        ]));
     }
 }

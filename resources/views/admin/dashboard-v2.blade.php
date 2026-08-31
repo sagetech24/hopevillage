@@ -22,42 +22,39 @@
     </x-slot>
 
     <div class="pt-14 pb-24 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-5xl mx-auto">
+        <div class="max-w-6xl mx-auto">
             <!-- Welcome Section -->
             <div class="mb-6">
                 <h1 class="text-2xl font-bold text-gray-800">Welcome back, {{ auth()->user()->name }}!</h1>
                 <p class="text-gray-600 mt-1">Here's what's happening with your community today.</p>
             </div>
 
-            <!-- Stats Cards Grid -->
+            <!-- Stats Cards Grid (eager — above the fold) -->
             <livewire:admin.dashboard-stats />
             <br />
-            <livewire:admin.weekly-registration-traffic />
+            <livewire:admin.weekly-registration-traffic lazy />
 
             <br />
             <!-- Entry Scanning Per Location Chart -->
-            <livewire:admin.entry-scans-per-location />
+            <livewire:admin.entry-scans-per-location lazy />
             <!-- Main Content Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
 
                 <!-- Left Column - Charts (2/3 width) -->
                 <div class="lg:col-span-2 space-y-6">
                     <!-- Analytics Charts -->
-                    <livewire:admin.dashboard-charts />
+                    <livewire:admin.dashboard-charts lazy />
                 </div>
 
                 <!-- Right Column - Tables & Activity (1/3 width) -->
                 <div class="space-y-6">
                     <!-- Upcoming Events -->
-                    <livewire:admin.upcoming-events />
+                    <livewire:admin.upcoming-events lazy />
                     
                     <!-- Top Members -->
-                    <livewire:admin.top-members />
-                    
-                    <!-- Recent Activity -->
-                    <livewire:admin.recent-activity />
+                    <livewire:admin.top-members lazy />
 
-                    <livewire:admin.points-distribution />
+                    <livewire:admin.points-distribution lazy />
                     
                 </div>
             </div>

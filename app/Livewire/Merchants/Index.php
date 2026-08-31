@@ -18,6 +18,8 @@ class Index extends Component
 
     public string $activeTab = 'merchants'; // 'merchants' | 'merchant-ledger'
 
+    public string $viewMode = 'card';
+
     protected $paginationTheme = 'tailwind';
 
     protected $queryString = [
@@ -27,11 +29,22 @@ class Index extends Component
     public function mount()
     {
         $this->showMessage = session()->has('message');
+        $this->viewMode = session('merchants_view_mode', 'card');
 
         $tab = request()->query('tab');
         if (in_array($tab, ['merchant-ledger', 'merchants'], true)) {
             $this->activeTab = $tab;
         }
+    }
+
+    public function setViewMode(string $mode): void
+    {
+        if (! in_array($mode, ['card', 'list'], true)) {
+            return;
+        }
+
+        $this->viewMode = $mode;
+        session(['merchants_view_mode' => $mode]);
     }
 
     public function updatingSearch()
@@ -53,7 +66,7 @@ class Index extends Component
     {
         $merchant = Merchant::where('merchant_code', $merchant_code)->firstOrFail();
         $merchant->delete(); // This will perform a soft delete
-        
+
         session()->flash('message', 'Merchant archived successfully.');
         $this->showMessage = true;
         $this->dispatch('merchant-deleted');
@@ -63,7 +76,7 @@ class Index extends Component
     {
         $merchant = Merchant::where('merchant_code', $merchant_code)->firstOrFail();
         $merchant->update(['is_active' => true]);
-        
+
         session()->flash('message', 'Merchant approved successfully.');
         $this->showMessage = true;
     }
@@ -72,7 +85,7 @@ class Index extends Component
     {
         $merchant = Merchant::where('merchant_code', $merchant_code)->firstOrFail();
         $merchant->delete(); // Soft delete to reject
-        
+
         session()->flash('message', 'Merchant application rejected.');
         $this->showMessage = true;
     }
@@ -83,11 +96,11 @@ class Index extends Component
 
         if ($this->search) {
             $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('contact_name', 'like', '%' . $this->search . '%')
-                  ->orWhere('email', 'like', '%' . $this->search . '%')
-                  ->orWhere('phone', 'like', '%' . $this->search . '%')
-                  ->orWhere('merchant_code', 'like', '%' . $this->search . '%');
+                $q->where('name', 'like', '%'.$this->search.'%')
+                    ->orWhere('contact_name', 'like', '%'.$this->search.'%')
+                    ->orWhere('email', 'like', '%'.$this->search.'%')
+                    ->orWhere('phone', 'like', '%'.$this->search.'%')
+                    ->orWhere('merchant_code', 'like', '%'.$this->search.'%');
             });
         }
 

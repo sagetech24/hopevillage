@@ -185,7 +185,7 @@ class Orders extends Component
         $totalsRow = (clone $baseQuery)
             ->selectRaw('COALESCE(SUM(marketplace_order_items.quantity), 0) as total_quantity')
             ->selectRaw('COALESCE(SUM(marketplace_order_items.quantity * marketplace_order_items.points_per_item), 0) as total_points')
-            ->selectRaw('COALESCE(SUM(marketplace_order_items.quantity * marketplace_items.amount_cost), 0) as total_amount')
+            ->selectRaw('COALESCE(SUM(marketplace_order_items.quantity * marketplace_order_items.points_per_item * marketplace_items.amount_cost), 0) as total_amount')
             ->first();
 
         $totalQuantity = (int) ($totalsRow->total_quantity ?? 0);
@@ -225,7 +225,7 @@ class Orders extends Component
                     'quantity' => $quantity,
                     'points' => (int) $row->total_points,
                     'amount' => $unitAmount,
-                    'total_cost' => round($quantity * $unitAmount, 2),
+                    'total_cost' => round($row->total_points * $unitAmount, 2),
                 ];
             })
             ->values()
@@ -258,6 +258,7 @@ class Orders extends Component
                 $row = $byDay->get($dateKey);
                 if (! $row) {
                     $data[] = 0;
+
                     continue;
                 }
                 $data[] = $this->trendMetric === 'points'

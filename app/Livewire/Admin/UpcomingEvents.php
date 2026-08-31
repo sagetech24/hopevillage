@@ -7,6 +7,11 @@ use Livewire\Component;
 
 class UpcomingEvents extends Component
 {
+    public function placeholder()
+    {
+        return view('livewire.admin.partials.card-placeholder');
+    }
+
     public function getUpcomingEventsProperty()
     {
         return Event::where('status', 'published')

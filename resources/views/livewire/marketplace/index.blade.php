@@ -1,9 +1,46 @@
-<div>
+<div
+    x-data="{
+        favorites: [],
+        storageKey: 'marketplace_favorites_{{ auth()->id() }}',
+        init() {
+            try {
+                const raw = sessionStorage.getItem(this.storageKey);
+                this.favorites = raw ? JSON.parse(raw) : [];
+                if (! Array.isArray(this.favorites)) {
+                    this.favorites = [];
+                }
+                this.favorites = this.favorites.map(id => Number(id)).filter(id => id > 0);
+            } catch (e) {
+                this.favorites = [];
+            }
+            $wire.set('favoriteIds', this.favorites);
+        },
+        toggle(id) {
+            id = Number(id);
+            if (this.isFavorite(id)) {
+                this.favorites = this.favorites.filter(itemId => itemId !== id);
+            } else {
+                this.favorites = [...this.favorites, id];
+            }
+            sessionStorage.setItem(this.storageKey, JSON.stringify(this.favorites));
+            $wire.set('favoriteIds', this.favorites);
+            if ($wire.showFavoritesOnly) {
+                $wire.$refresh();
+            }
+        },
+        isFavorite(id) {
+            return this.favorites.includes(Number(id));
+        },
+        favoriteCount() {
+            return this.favorites.length;
+        },
+    }"
+>
     <x-slot name="header">
-        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-6xl mx-auto sm:px-6 lg:px-8">
             <div class="flex flex-wrap justify-between items-center gap-3">
                 <h2 class="font-semibold md:text-xl text-2xl text-gray-800 leading-tight">
-                    {{ __('Marketplace items') }}
+                    {{ __('Marketplace Items') }}
                 </h2>
                 <div class="flex flex-wrap items-center gap-2">
                     @can('marketplace.edit')
@@ -11,25 +48,15 @@
                             {{ __('Go to Inventory') }}
                         </a>
                         <a href="{{ route('admin.marketplace.cashier') }}" class="text-sm bg-green-600 hover:bg-green-700 text-white transition-all duration-300 py-2 px-3 rounded-full font-medium hover:text-green-100">
-                            {{ __('Cashier Checkout') }}
+                            {{ __('Cashier') }}
                         </a>
                     @endcan
-                    {{-- @if (auth()->user()?->canAccessAdminMarketplace())
-                        <a href="{{ route('admin.marketplace.orders') }}" class="text-sm bg-orange-500 hover:bg-orange-600 text-white transition-all duration-300 py-2 px-3 rounded-full font-medium hover:text-orange-200">
-                            {{ __('Confirm Orders') }}
-                        </a>
-                    @endif --}}
                     @can('marketplace.create')
                         <a href="{{ route('admin.marketplace.create') }}" class="flex items-center gap-1 text-sm bg-orange-600 hover:bg-orange-700 text-white transition-all duration-300 py-2 px-3 rounded-full font-medium hover:text-orange-200">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                             </svg>
                             <span class="">{{ __('Add item') }}</span>
-                        </a>
-                        <a href="{{ route('admin.marketplace.create') }}" class="md:hidden inline-flex bg-orange-500 hover:bg-orange-600 text-white p-2 rounded-full">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                            </svg>
                         </a>
                     @endcan
                 </div>
@@ -38,7 +65,7 @@
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-6xl mx-auto md:px-0 xl:px-0 px-3">
             @if (session()->has('message'))
                 <div
                     x-data="{ show: @entangle('showMessage').live, timeoutId: null }"
@@ -68,13 +95,25 @@
                             class="w-full px-4 py-2 border text-gray-800 border-gray-300 rounded-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         >
                     </div>
-                    <div class="flex items-center gap-3">
-                        <select wire:model.live="statusFilter" class="w-full px-4 py-2 border text-gray-800 border-gray-300 rounded-full focus:ring-2 focus:ring-orange-500">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <select wire:model.live="statusFilter" class="w-full min-w-[8rem] flex-1 px-4 py-2 border text-gray-800 border-gray-300 rounded-full focus:ring-2 focus:ring-orange-500">
                             <option value="all">{{ __('All') }}</option>
                             <option value="active">{{ __('Active') }}</option>
                             <option value="inactive">{{ __('Inactive') }}</option>
                             <option value="deleted">{{ __('Deleted') }}</option>
                         </select>
+                        <label class="inline-flex shrink-0 items-center gap-2 cursor-pointer select-none rounded-full border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                            <input
+                                type="checkbox"
+                                wire:model.live="showFavoritesOnly"
+                                class="rounded border-gray-300 text-amber-500 focus:ring-amber-500"
+                            >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4 text-amber-400">
+                                <path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" />
+                            </svg>
+                            <span>{{ __('Favorites') }}</span>
+                            <span x-show="favoriteCount() > 0" x-cloak class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800" x-text="favoriteCount()"></span>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -182,6 +221,13 @@
                                             @endif
                                         </td>
                                         <td class="px-4 py-3 whitespace-nowrap text-right">
+                                            <div class="inline-flex items-center gap-1">
+                                                <x-marketplace.favorite-button
+                                                    :item-id="$item->id"
+                                                    :label="__('Favorite')"
+                                                    :active-label="__('Favorite')"
+                                                    class="px-2 py-1 hover:bg-amber-50"
+                                                />
                                             <div
                                                 x-data="{
                                                     open: false,
@@ -307,11 +353,18 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            </div>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="px-4 py-12 text-center text-gray-600">{{ __('No marketplace items yet.') }}</td>
+                                        <td colspan="7" class="px-4 py-12 text-center text-gray-600">
+                                            @if ($showFavoritesOnly)
+                                                {{ __('No favorite items yet. Star items to add them here.') }}
+                                            @else
+                                                {{ __('No marketplace items yet.') }}
+                                            @endif
+                                        </td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -321,8 +374,15 @@
             @else
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     @forelse ($items as $item)
-                        <div class="bg-white rounded-xl shadow-md overflow-hidden flex flex-col h-full">
+                        <div class="bg-white border border-gray-300 rounded-xl shadow-md overflow-hidden flex flex-col h-full">
                             <div class="relative h-80 bg-gray-100 flex items-center justify-center overflow-hidden shrink-0">
+                                <div class="absolute top-2 left-2 z-10">
+                                    <x-marketplace.favorite-button
+                                        :item-id="$item->id"
+                                        :label="__('Add to Favorite')"
+                                        class="px-2.5 py-1.5 bg-white/90 shadow-sm hover:bg-white"
+                                    />
+                                </div>
                                 @if ($item->trashed())
                                     <span class="absolute top-2 right-2 shrink-0 text-xs bg-red-200 border border-red-400 text-red-800 px-2 py-0.5 rounded-full">{{ __('Deleted') }}</span>
                                 @elseif ($item->is_active && $item->valid_until && $item->valid_until->isFuture())
@@ -430,7 +490,13 @@
                             </div>
                         </div>
                     @empty
-                        <p class="text-gray-600 col-span-full text-center py-12">{{ __('No marketplace items yet.') }}</p>
+                        <p class="text-gray-600 col-span-full text-center py-12">
+                            @if ($showFavoritesOnly)
+                                {{ __('No favorite items yet. Star items to add them here.') }}
+                            @else
+                                {{ __('No marketplace items yet.') }}
+                            @endif
+                        </p>
                     @endforelse
                 </div>
             @endif

@@ -12,6 +12,13 @@ class WeeklyRegistrationTraffic extends Component
 {
     public string $range = '30';
 
+    public function placeholder()
+    {
+        return view('livewire.admin.partials.chart-placeholder', [
+            'title' => 'Membership Signups vs Event Days',
+        ]);
+    }
+
     public function updatedRange(): void
     {
         if (! in_array($this->range, ['30', '90', '365'], true)) {

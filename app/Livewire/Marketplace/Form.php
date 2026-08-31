@@ -120,11 +120,9 @@ class Form extends Component
 
     public function updated($propertyName): void
     {
-        if ($propertyName === 'points_cost' && ($this->points_cost === '' || $this->points_cost === null)) {
-            $this->points_cost = 0;
-        }
-
-        if (! in_array($propertyName, ['confirmingZeroPoints', 'compute_points_cost', 'unlimited_stock'], true)) {
+        if ($propertyName === 'points_cost' && $this->isEmptyPointsCost()) {
+            $this->resetErrorBag('points_cost');
+        } elseif (! in_array($propertyName, ['confirmingZeroPoints', 'compute_points_cost', 'unlimited_stock'], true)) {
             $this->validateOnly($propertyName);
         }
 
@@ -137,6 +135,20 @@ class Form extends Component
         if (in_array($propertyName, ['amount_cost', 'stockInput', 'compute_points_cost', 'unlimited_stock'], true)) {
             $this->applyComputedPointsCost();
         }
+    }
+
+    public function normalizeEmptyPointsCost(): void
+    {
+        if ($this->isEmptyPointsCost()) {
+            $this->points_cost = 0;
+        }
+
+        $this->validateOnly('points_cost');
+    }
+
+    protected function isEmptyPointsCost(): bool
+    {
+        return $this->points_cost === '' || $this->points_cost === null;
     }
 
     protected function applyComputedPointsCost(): void
@@ -206,6 +218,10 @@ class Form extends Component
                 : auth()->user()?->can('marketplace.create'),
             403
         );
+
+        if ($this->isEmptyPointsCost()) {
+            $this->points_cost = 0;
+        }
 
         $this->validate();
 

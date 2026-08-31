@@ -4,7 +4,7 @@
 
 @if (Illuminate\Support\Facades\Gate::allows($requiredPermission))
     <x-slot name="header">
-        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8 flex items-center justify-between gap-3">
+        <div class="max-w-5xl mx-auto px-4 md:px-0 lg:px-0 flex items-center justify-between gap-3">
             <h2 class="font-semibold text-xl text-gray-800">
                 {{ $itemId ? __('Edit Marketplace Item') : __('New Marketplace Item') }}
             </h2>
@@ -13,9 +13,9 @@
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-5xl mx-auto px-4 md:px-0 lg:px-0">
             <form wire:submit="save" class="bg-white shadow-md rounded-lg p-6 space-y-6">
-                <div class="grid grid-cols-4 gap-4">
+                <div class="grid md:grid-cols-4 grid-cols-1 md:gap-4 gap-y-4">
                     <div class="col-span-1">
                         <span class="block text-sm font-medium text-gray-700">{{ __('Update Image') }}</span>
                         <label for="itemImage" class="mt-2 block cursor-pointer">
@@ -58,15 +58,15 @@
         
                         <div class="flex flex-col gap-4">
                             <fieldset class="border border-gray-300 rounded-md p-4">
-                                <legend class="text-sm font-medium text-gray-700">{{ __('Item Cost and Stock Settings') }}</legend>
+                                <legend class="text-sm font-medium text-gray-700">{{ __('Item Costing and Settings') }}</legend>
                                 <ul class="text-xs text-gray-500 list-disc list-inside ml-3">
                                     <li class="mb-1 -ml-2">{{ __('The stock is the total quantity of the item in stock.') }}</li>
                                     <li class="mb-1 -ml-2">{{ __('Enable the checkbox to allow the item to have unlimited stock.') }}</li>
-                                    <li class="mb-1 -ml-2">{{ __('Cost per item is the cost of 1 item in SGD. Minimum SGD 0.00.') }}</li>
+                                    <li class="mb-1 -ml-2">{{ __('Cost per item is auto-computed as points per item × cost per point.') }}</li>
                                     <li class="mb-1 -ml-2">{{ __('Points per item is the points value of the item to be redeemed.') }}</li>
                                     {{-- <li class="mb-1 -ml-2">{{ __('Auto-compute points cost based on item cost & stock quantity. Uncheck to enter points manually.') }}</li> --}}
                                 </ul>
-                                <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div class="flex flex-col gap-2">
                                         <label class="block text-sm font-medium text-gray-700">{{ __('Stock') }}</label>
                                         <input type="number" min="0" wire:model.live="stockInput" placeholder="{{ __('Maximum Quantity') }}" class="w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
@@ -77,29 +77,46 @@
                                         <input
                                             type="number"
                                             min="0"
-                                            wire:model="points_cost"
+                                            wire:model.live="points_cost"
+                                            wire:blur="normalizeEmptyPointsCost"
                                             @if ($compute_points_cost) readonly @endif
                                             class="w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 {{ $compute_points_cost ? 'bg-gray-100 cursor-not-allowed' : '' }}"
                                         >
                                         @error('points_cost') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                                     </div>
                                     <div class="flex flex-col gap-2">
-                                        <label class="block text-sm font-medium text-gray-700">{{ __('Cost per Item') }}</label>
+                                        <label class="block text-sm font-medium text-gray-700">{{ __('Cost per Point') }}</label>
                                         <div class="relative">
                                             <input type="number" min="0" step="0.01" placeholder="0.00" wire:model.live="amount_cost" class="pl-12 w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500">
-                                            <div class="absolute left-3 top-1 bottom-0 flex items-center justify-center">
-                                                <span class="text-sm text-gray-500">
+                                            <div class="absolute left-1 top-0 bottom-0 flex items-center justify-center">
+                                                <span class="text-sm text-gray-500">`
                                                     {{ __('SGD') }}
                                                 </span>
                                             </div>
                                         </div>
                                         @error('amount_cost') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                                     </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label class="block text-sm font-medium text-gray-700">{{ __('Cost per Item') }}</label>
+                                        <div class="relative">
+                                            <input
+                                                type="text"
+                                                readonly
+                                                value="{{ number_format($this->computedCostPerItem(), 2, '.', '') }}"
+                                                class="pl-12 w-full rounded-md border-gray-300 bg-gray-100 cursor-not-allowed shadow-sm"
+                                            >
+                                            <div class="absolute left-3 top-1 bottom-0 flex items-center justify-center">
+                                                <span class="text-sm text-gray-500">
+                                                    {{ __('SGD') }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="flex flex-col gap-2 mt-4">
                                     <label class="flex items-center gap-2">
                                         <input type="checkbox" wire:model.live="unlimited_stock" class="rounded border-gray-300 text-orange-600 focus:ring-orange-500">
-                                        <span class="text-sm font-medium text-gray-700 whitespace-nowrap">{{ __('Unable to specify maximum quantity') }}</span>
+                                        <span class="text-sm font-medium text-gray-700 whitespace-nowrap">{{ __('Unlimited quantity') }}</span>
                                     </label>
                                     @error('stockInput') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                                     
