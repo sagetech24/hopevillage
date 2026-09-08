@@ -8,13 +8,13 @@
                         <div class="min-w-0 w-full">
                             <div class="flex flex-nowrap items-start gap-3 w-full">
                                 <p class="text-orange-100 text-2xl font-bold mb-4 drop-shadow shrink-0">Welcome back!</p>
-                                <div class="ml-auto shrink-0">
+                                {{-- <div class="ml-auto shrink-0">
                                     @if(auth()->user()->is_verified)
                                         <span class="text-[11px] font-normal bg-green-400/40 text-white border border-green-400/50 px-2.5 py-1 rounded-full whitespace-nowrap">Verified</span>
                                     @else
                                         <span class="text-[11px] font-normal bg-red-600/40 text-white border border-red-600/50 px-2.5 py-1 rounded-full whitespace-nowrap">Unverified</span>
                                     @endif
-                                </div>
+                                </div> --}}
                             </div>
                             <div class="flex items-start gap-2">
                                 <div class="border-2 border-white bg-white/70 shadow-lg rounded-xl p-2">
@@ -36,7 +36,10 @@
                                 </div>
                             </div>
                             <br />
-                            <livewire:member.dashboard-points />
+                            <div class="flex items-start gap-6 flex-wrap justify-between">
+                                <livewire:member.dashboard-points />
+                                <livewire:member.dashboard-ranking variant="header" wire:key="dashboard-ranking-header" />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -44,6 +47,8 @@
 
             <!-- Main Content -->
             <div class="px-4 mt-10 relative z-10">
+                {{-- <livewire:member.dashboard-ranking variant="list" wire:key="dashboard-ranking-list" /> --}}
+
                 <!-- Search Section -->
                 <div class="mb-6 animate-slide-down">
                     <h1 class="text-2xl font-bold text-base-content mb-4">What's on your mind?</h1>
