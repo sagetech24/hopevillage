@@ -10,6 +10,7 @@
     $merchantLabel = $item->merchant_name ?: 'All Sellers';
     $hasEnoughPoints = ! $isAdmin || $userPoints >= (int) ($item->points_cost ?? 0);
     $cannotAfford = $isAdmin && $tab === 'active' && ! $hasEnoughPoints;
+    $isRedeemed = $tab === 'redeemed';
     $claimedOn = ! empty($item->claimed_at ?? null)
         ? \Carbon\Carbon::parse($item->claimed_at)->format('d/m/Y g:i A')
         : 'N/A';
@@ -21,7 +22,7 @@
 <x-voucher.ticket
     :type="$isAdmin ? 'admin' : 'merchant'"
     :merchant-label="$merchantLabel"
-    :dimmed="$cannotAfford"
+    :dimmed="$cannotAfford || $isRedeemed"
 >
     <p class="text-sm font-bold text-gray-900 leading-tight">{{ $item->name }}</p>
 
@@ -98,6 +99,20 @@
                 >
                     Use Now
                 </button>
+                @if($this->canUseAdminTestRedeem())
+                    <button
+                        type="button"
+                        wire:click="adminTestRedeem({{ $item->id }}, '{{ $item->type }}')"
+                        wire:confirm="Mark this claimed voucher as redeemed? Admin/dev testing only."
+                        wire:loading.attr="disabled"
+                        wire:target="adminTestRedeem({{ $item->id }}, '{{ $item->type }}')"
+                        class="py-1 px-3 rounded-full border border-dashed border-gray-400 text-xs font-semibold text-gray-600 whitespace-nowrap"
+                        title="Admin/dev testing only — hidden in production"
+                    >
+                        <span wire:loading.remove wire:target="adminTestRedeem({{ $item->id }}, '{{ $item->type }}')">Redeem</span>
+                        <span wire:loading wire:target="adminTestRedeem({{ $item->id }}, '{{ $item->type }}')">...</span>
+                    </button>
+                @endif
             @endif
         @else
             @if($tab === 'active')
@@ -119,6 +134,20 @@
                 >
                     Use Now
                 </button>
+                @if($this->canUseAdminTestRedeem())
+                    <button
+                        type="button"
+                        wire:click="adminTestRedeem({{ $item->id }}, '{{ $item->type }}')"
+                        wire:confirm="Mark this claimed voucher as redeemed? Admin/dev testing only."
+                        wire:loading.attr="disabled"
+                        wire:target="adminTestRedeem({{ $item->id }}, '{{ $item->type }}')"
+                        class="py-1 px-3 rounded-full border border-dashed border-gray-400 text-xs font-semibold text-gray-600 whitespace-nowrap"
+                        title="Admin/dev testing only — hidden in production"
+                    >
+                        <span wire:loading.remove wire:target="adminTestRedeem({{ $item->id }}, '{{ $item->type }}')">Redeem</span>
+                        <span wire:loading wire:target="adminTestRedeem({{ $item->id }}, '{{ $item->type }}')">...</span>
+                    </button>
+                @endif
             @endif
         @endif
     </x-slot:actions>

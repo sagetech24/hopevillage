@@ -4,6 +4,7 @@ namespace App\Livewire\Member\VouchersV3;
 
 use App\Models\AdminVoucher;
 use App\Models\Merchant;
+use App\Models\User;
 use App\Models\Voucher;
 use App\Services\PointsService;
 use App\Services\QrCodeService;
@@ -274,6 +275,103 @@ class Index extends Component
         );
     }
 
+    /**
+     * Admin/dev testing shortcut to mark a claimed voucher redeemed.
+     *
+     * Never available in production. Members never see or invoke this in
+     * deployed environments. Local/testing allows the signed-in tester
+     * (usually a member account on this page) to skip merchant QR scanning.
+     */
+    public function canUseAdminTestRedeem(): bool
+    {
+        if (app()->isProduction()) {
+            return false;
+        }
+
+        $user = auth()->user();
+        if ($user === null) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return app()->environment(['local', 'testing']);
+    }
+
+    public function adminTestRedeem(int $id, string $type): void
+    {
+        if (! $this->canUseAdminTestRedeem()) {
+            $this->dispatch('notify', type: 'error', message: 'This action is not available.');
+            return;
+        }
+
+        $user = auth()->user();
+        if (! $user) {
+            $this->dispatch('notify', type: 'error', message: 'You must be logged in.');
+            return;
+        }
+
+        $type = $type === 'admin' ? 'admin' : 'merchant';
+
+        try {
+            if ($type === 'admin') {
+                $this->adminTestRedeemAdminVoucher($user, $id);
+            } else {
+                $this->adminTestRedeemMerchantVoucher($user, $id);
+            }
+        } catch (\Throwable $e) {
+            $this->dispatch('notify', type: 'error', message: 'Failed to redeem voucher: ' . $e->getMessage());
+        }
+    }
+
+    private function adminTestRedeemMerchantVoucher(User $user, int $voucherId): void
+    {
+        $voucher = $user->vouchers()
+            ->where('vouchers.id', $voucherId)
+            ->wherePivot('status', 'claimed')
+            ->first();
+
+        if (! $voucher) {
+            $this->dispatch('notify', type: 'error', message: 'Claimed voucher not found.');
+            return;
+        }
+
+        DB::transaction(function () use ($user, $voucher) {
+            $user->vouchers()->updateExistingPivot($voucher->id, [
+                'status' => 'redeemed',
+                'redeemed_at' => now(),
+            ]);
+
+            app(PointsService::class)->awardVoucherRedeem($user, $voucher);
+        });
+
+        $this->dispatch('notify', type: 'success', message: 'Voucher marked as redeemed (admin test).');
+    }
+
+    private function adminTestRedeemAdminVoucher(User $user, int $adminVoucherId): void
+    {
+        $voucher = $user->adminVouchers()
+            ->where('admin_vouchers.id', $adminVoucherId)
+            ->wherePivot('status', 'claimed')
+            ->first();
+
+        if (! $voucher) {
+            $this->dispatch('notify', type: 'error', message: 'Claimed voucher not found.');
+            return;
+        }
+
+        DB::transaction(function () use ($user, $voucher) {
+            $user->adminVouchers()->updateExistingPivot($voucher->id, [
+                'status' => 'redeemed',
+                'redeemed_at' => now(),
+            ]);
+        });
+
+        $this->dispatch('notify', type: 'success', message: 'Voucher marked as redeemed (admin test).');
+    }
+
     public function getActiveItemsProperty(): Collection
     {
         $user = auth()->user();
@@ -356,7 +454,10 @@ class Index extends Component
         $merchantItems = $user->vouchers()
             ->with('merchant')
             ->wherePivot('status', 'claimed')
-            ->where('vouchers.valid_until', '>=', now())
+            ->where(function ($query) {
+                $query->whereNull('vouchers.valid_until')
+                    ->orWhere('vouchers.valid_until', '>=', now());
+            })
             ->latest('user_voucher.claimed_at')
             ->get()
             ->map(function (Voucher $voucher) {
@@ -377,7 +478,10 @@ class Index extends Component
         $adminItems = $user->adminVouchers()
             ->with('merchants')
             ->wherePivot('status', 'claimed')
-            ->where('admin_vouchers.valid_until', '>=', now())
+            ->where(function ($query) {
+                $query->whereNull('admin_vouchers.valid_until')
+                    ->orWhere('admin_vouchers.valid_until', '>=', now());
+            })
             ->latest('user_admin_voucher.claimed_at')
             ->get()
             ->map(function (AdminVoucher $voucher) {

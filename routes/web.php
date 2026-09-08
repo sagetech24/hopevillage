@@ -202,10 +202,6 @@ Route::middleware([
         return view('member.dashboard-v2');
     })->name('member.dashboard');
 
-    Route::get('/member/vouchers', function () {
-        return view('member.vouchers-v3');
-    })->name('member.vouchers');
-
     // Marketplace (points)
     Route::get('/member/marketplace/my-orders', \App\Livewire\Member\Marketplace\MyOrders::class)->name('member.marketplace.my-orders');
     Route::get('/member/marketplace/cart', function () {
@@ -238,6 +234,20 @@ Route::middleware([
 
     // QR Code routes
     Route::get('/member/qr-code', [QrCodeController::class, 'show'])->name('member.qr-code');
+});
+
+// Member vouchers: members always. Admins may open it outside production for test Redeem.
+Route::middleware([
+    'auth:sanctum',
+    config('jetstream.auth_session'),
+])->group(function () {
+    Route::get('/member/vouchers', function () {
+        $user = auth()->user();
+        $allowed = $user->isMember() || (! app()->isProduction() && $user->isAdmin());
+        abort_unless($allowed, 403, 'Unauthorized access. Member privileges required.');
+
+        return view('member.vouchers-v3');
+    })->name('member.vouchers');
 });
 
 // Merchant Dashboard - Only accessible by merchant users
