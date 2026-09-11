@@ -125,6 +125,18 @@ class User extends Authenticatable
     }
 
     /**
+     * Whether this admin may open and update Admin User Permissions.
+     */
+    public function canAccessUserPermissions(): bool
+    {
+        if (! $this->isAdmin()) {
+            return false;
+        }
+
+        return $this->isSuperAdmin() || $this->can('update_user_permissions');
+    }
+
+    /**
      * Whether this admin may update a member's mobile number.
      */
     public function canUpdateMemberMobileNumber(): bool

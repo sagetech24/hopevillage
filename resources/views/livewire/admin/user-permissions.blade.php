@@ -1,6 +1,4 @@
 <div>
-    {{-- validate if the user has the permission to update user permissions AND the email is not marnelle24@gmail.com--}}
-    {{-- @can('update_user_permissions') --}}
         <x-slot name="header">
             <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center">
@@ -122,13 +120,24 @@
                             <table class="min-w-full divide-y divide-gray-200">
                                 <tbody class="bg-white divide-y-0 divide-gray-200">
                                     @foreach ($specialPermissions as $permission => $label)
+                                        @php
+                                            $isLocked = $this->isLockedSpecialPermission($permission);
+                                        @endphp
                                         <tr>
-                                            <td class="w-1/2 px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{{ $label }}</td>
+                                            <td class="w-1/2 px-4 py-2 text-sm font-medium text-gray-900">
+                                                {{ $label }}
+                                                @if ($isLocked)
+                                                    <p class="mt-1 text-xs font-normal text-gray-400">
+                                                        {{ __('You cannot change this permission on your own account.') }}
+                                                    </p>
+                                                @endif
+                                            </td>
                                             <td>
                                                 <input
                                                     type="checkbox"
                                                     wire:model.live.boolean="permissions.special.{{ $permission }}"
-                                                    class="h-6 w-6 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                                                    @disabled($isLocked)
+                                                    class="h-6 w-6 text-orange-600 border-gray-300 rounded focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 >
                                             </td>
                                         </tr>
@@ -164,8 +173,5 @@
                 </div>
             </div>
         </div>
-    {{-- @else --}}
-        {{-- @php abort(403, 'Unauthorized.'); @endphp --}}
-    {{-- @endcan --}}
 </div>
 

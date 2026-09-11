@@ -10,6 +10,8 @@ use Spatie\Permission\Models\Permission;
 
 class UserPermissions extends Component
 {
+    public const UPDATE_USER_PERMISSIONS = 'update_user_permissions';
+
     #[Url(as: 'selected')]
     public ?int $selectedUserId = null;
 
@@ -54,7 +56,7 @@ class UserPermissions extends Component
     ];
 
     public $specialPermissions = [
-        'update_user_permissions' => 'Can update user permissions of the Admin User',
+        self::UPDATE_USER_PERMISSIONS => 'Can access and update user permissions of Admin Users',
         'reset_password' => 'Can Reset Password of the Member',
         'can_update_email_address_of_member' => 'Can Update Email address of the Member',
         'can_update_mobile_number_of_member' => 'Can Update Mobile Number of the Member',
@@ -78,6 +80,8 @@ class UserPermissions extends Component
 
     public function mount(): void
     {
+        $this->authorizeAccess();
+
         if ($this->selectedUserId) {
             $isValidAdmin = User::query()
                 ->whereKey($this->selectedUserId)
@@ -106,8 +110,20 @@ class UserPermissions extends Component
 
     public function updatedSelectedUserId(): void
     {
+        $this->authorizeAccess();
         $this->saveSuccessMessage = null;
         $this->loadPermissions();
+    }
+
+    public function isEditingSelf(): bool
+    {
+        return $this->selectedUserId !== null
+            && (int) $this->selectedUserId === (int) auth()->id();
+    }
+
+    public function isLockedSpecialPermission(string $permission): bool
+    {
+        return $permission === self::UPDATE_USER_PERMISSIONS && $this->isEditingSelf();
     }
 
     /**
@@ -133,6 +149,8 @@ class UserPermissions extends Component
      */
     public function toggleRowAll(string $model): void
     {
+        $this->authorizeAccess();
+
         if (! in_array($model, $this->models, true)) {
             return;
         }
@@ -174,6 +192,8 @@ class UserPermissions extends Component
 
     public function save(): void
     {
+        $this->authorizeAccess();
+
         if (! $this->selectedUserId) {
             return;
         }
@@ -193,10 +213,20 @@ class UserPermissions extends Component
         }
 
         foreach (array_keys($this->specialPermissions) as $permissionName) {
+            if ($this->isLockedSpecialPermission($permissionName)) {
+                continue;
+            }
+
             if (! empty($this->permissions['special'][$permissionName])) {
                 $selectedPermissionNames[] = $permissionName;
             }
         }
+
+        if ($this->isEditingSelf() && $user->getPermissionNames()->contains(self::UPDATE_USER_PERMISSIONS)) {
+            $selectedPermissionNames[] = self::UPDATE_USER_PERMISSIONS;
+        }
+
+        $selectedPermissionNames = array_values(array_unique($selectedPermissionNames));
 
         // Ensure permissions exist in the database
         foreach ($selectedPermissionNames as $permissionName) {
@@ -212,6 +242,11 @@ class UserPermissions extends Component
         $this->saveSuccessBannerKey++;
 
         $this->js('window.scrollTo({ top: 0, left: 0, behavior: "smooth" })');
+    }
+
+    protected function authorizeAccess(): void
+    {
+        abort_unless(auth()->user()?->canAccessUserPermissions(), 403, 'Unauthorized.');
     }
 
     public function render(): View

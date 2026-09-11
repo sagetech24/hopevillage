@@ -62,11 +62,11 @@
                                     </x-dropdown-link>
                                 @endcan
 
-                                @can('update_user_permissions')
+                                @if (auth()->user()?->canAccessUserPermissions())
                                     <x-dropdown-link href="{{ route('admin.user-permissions') }}">
                                         {{ __('User Permissions') }}
                                     </x-dropdown-link>
-                                @endcan
+                                @endif
 
                                 @php
                                     $allowedAdminUserEmails = [
@@ -275,11 +275,11 @@
                                 {{ __('Settings') }}
                             </x-responsive-nav-link>
                         @endcan
-                        @can('update_user_permissions')
+                        @if (auth()->user()?->canAccessUserPermissions())
                             <x-responsive-nav-link href="{{ route('admin.user-permissions') }}">
                                 {{ __('User Permissions') }}
                             </x-responsive-nav-link>
-                        @endcan
+                        @endif
 
                         @php
                             $allowedAdminUserEmails = [
