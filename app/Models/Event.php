@@ -13,7 +13,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Event extends Model implements HasMedia
 {
-    use HasFactory, SoftDeletes, InteractsWithMedia;
+    use HasFactory, InteractsWithMedia, SoftDeletes;
 
     protected $fillable = [
         'location_id',
@@ -70,13 +70,11 @@ class Event extends Model implements HasMedia
 
     /**
      * Generate a unique event code for QR code generation.
-     *
-     * @return string
      */
     protected static function generateUniqueEventCode(): string
     {
         do {
-            $code = 'EVT-' . strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
+            $code = 'EVT-'.strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
         } while (static::where('event_code', $code)->exists());
 
         return $code;
@@ -98,6 +96,30 @@ class Event extends Model implements HasMedia
     public function getThumbnailUrlAttribute(): ?string
     {
         $media = $this->getFirstMedia('thumbnail');
+
         return $media ? $media->getUrl() : null;
+    }
+
+    public function displayStatus(): string
+    {
+        if ($this->trashed()) {
+            return __('Deleted');
+        }
+
+        return ucfirst((string) $this->status);
+    }
+
+    public function statusBadgeClasses(): string
+    {
+        if ($this->trashed()) {
+            return 'bg-red-200 border border-red-400 text-red-800';
+        }
+
+        return match ($this->status) {
+            'published' => 'bg-green-200 border border-green-400 text-green-800',
+            'cancelled' => 'bg-red-200 border border-red-400 text-red-800',
+            'completed' => 'bg-gray-200 border border-gray-400 text-gray-800',
+            default => 'bg-yellow-200 border border-yellow-400 text-yellow-800',
+        };
     }
 }

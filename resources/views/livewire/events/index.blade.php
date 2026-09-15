@@ -1,212 +1,382 @@
 <div>
-    @can('event.view')
-        <x-slot name="header">
-            <div class="flex justify-between items-center">
-                <div class="flex items-center gap-4">
-                    <h2 class="md:block hidden font-semibold text-xl text-gray-800 leading-tight">
-                        {{ 'Events in ' . $location->name }}
-                    </h2>
-                    <h2 class="md:hidden block font-semibold text-xl text-gray-800 leading-tight">
-                        {{ 'Events in ' . Str::words($location->name, 5, '...') }}
-                    </h2>
+    <x-slot name="header">
+        <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 md:px-0 xl:px-0 px-3">
+            <div class="flex flex-wrap justify-between items-center gap-3">
+                <h2 class="font-semibold md:text-xl text-2xl text-gray-800 leading-tight">
+                    <span class="md:inline hidden">{{ __('Events in') }} {{ $location->name }}</span>
+                    <span class="md:hidden inline">{{ __('Events in') }} {{ Str::words($location->name, 5, '...') }}</span>
+                </h2>
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="{{ route('admin.locations.profile', $location->location_code) }}" class="text-sm bg-slate-600 hover:bg-slate-700 text-white transition-all duration-300 py-2 px-3 rounded-full font-medium hover:text-slate-100">
+                        {{ __('Location profile') }}
+                    </a>
+                    @can('event.create')
+                        <a href="{{ route('admin.locations.events.create', $location->location_code) }}" class="flex items-center gap-1 text-sm bg-orange-600 hover:bg-orange-700 text-white transition-all duration-300 py-2 px-3 rounded-full font-medium hover:text-orange-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            <span>{{ __('Add event') }}</span>
+                        </a>
+                    @endcan
                 </div>
-                <a href="{{ route('admin.locations.events.create', $location->location_code) }}" class="md:block hidden bg-indigo-600 hover:bg-indigo-700 text-base text-white font-semibold py-2 px-4 rounded-lg">
-                    Create New Event
-                </a>
-                <a href="{{ route('admin.locations.events.create', $location->location_code) }}" title="Create New Event" class="md:hidden block bg-indigo-600 hover:bg-indigo-500 hover:scale-105 text-white p-2 rounded-full transition-all duration-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                </a>
             </div>
-        </x-slot>
-        <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                @if (session()->has('message'))
-                    <div 
-                        x-data="{ 
-                            show: @entangle('showMessage').live,
-                            timeoutId: null
-                        }"
-                        x-init="
-                            $watch('show', value => {
-                                if (value && !timeoutId) {
-                                    timeoutId = setTimeout(() => {
-                                        show = false;
-                                        timeoutId = null;
-                                    }, 3000);
-                                } else if (!value && timeoutId) {
-                                    clearTimeout(timeoutId);
-                                    timeoutId = null;
-                                }
-                            });
-                            if (show) {
-                                timeoutId = setTimeout(() => {
-                                    show = false;
-                                    timeoutId = null;
-                                }, 3000);
-                            }
-                        "
-                        x-show="show"
-                        x-transition:enter="transition ease-out duration-500"
-                        x-transition:enter-start="opacity-0"
-                        x-transition:enter-end="opacity-100"
-                        x-transition:leave="transition ease-out duration-500"
-                        x-transition:leave-start="opacity-100"
-                        x-transition:leave-end="opacity-0"
-                        class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" 
-                        role="alert"
-                    >
-                        <span class="block sm:inline">{{ session('message') }}</span>
-                    </div>
-                @endif
+        </div>
+    </x-slot>
 
-                <a href="{{ route('admin.locations.profile', $location->location_code) }}" class="text-gray-600 hover:text-gray-900 mb-4 inline-block md:mx-0 mx-4">
-                    ← Back to Profile
-                </a>
-                <!-- Search and Filter -->
-                <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6 mb-6 md:mx-0 mx-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <input 
-                                type="text" 
-                                wire:model.live.debounce.300ms="search" 
-                                placeholder="Search events..." 
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            >
-                        </div>
-                        <div>
-                            <select 
-                                wire:model.live="statusFilter" 
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            >
-                                <option value="all">All Status</option>
-                                <option value="draft">Draft</option>
-                                <option value="published">Published</option>
-                                <option value="cancelled">Cancelled</option>
-                                <option value="completed">Completed</option>
-                            </select>
-                        </div>
+    <div class="py-12">
+        <div class="max-w-6xl mx-auto md:px-0 xl:px-0 px-3">
+            @if (session()->has('message'))
+                <div
+                    x-data="{ show: @entangle('showMessage').live, timeoutId: null }"
+                    x-init="
+                        $watch('show', value => {
+                            if (value && !timeoutId) { timeoutId = setTimeout(() => { show = false; timeoutId = null; }, 2000); }
+                            else if (!value && timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
+                        });
+                        if (show) { timeoutId = setTimeout(() => { show = false; timeoutId = null; }, 3000); }
+                    "
+                    x-show="show"
+                    x-transition
+                    class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative"
+                    role="alert"
+                >
+                    <span class="block sm:inline">{{ session('message') }}</span>
+                </div>
+            @endif
+
+            <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="md:col-span-2">
+                        <input
+                            type="text"
+                            wire:model.live.debounce.300ms="search"
+                            placeholder="{{ __('Search events…') }}"
+                            class="w-full px-4 py-2 border text-gray-800 border-gray-300 rounded-full focus:ring-0 focus:ring-offset-0 focus:ring-orange-500 focus:border-orange-500"
+                        >
+                    </div>
+                    <div>
+                        <select wire:model.live="statusFilter" class="w-full px-4 py-2 border text-gray-800 border-gray-300 rounded-full focus:ring-0 focus:ring-offset-0 focus:ring-orange-500">
+                            <option value="all">{{ __('All') }}</option>
+                            <option value="draft">{{ __('Draft') }}</option>
+                            <option value="published">{{ __('Published') }}</option>
+                            <option value="cancelled">{{ __('Cancelled') }}</option>
+                            <option value="completed">{{ __('Completed') }}</option>
+                            <option value="deleted">{{ __('Deleted') }}</option>
+                        </select>
                     </div>
                 </div>
+            </div>
 
-                <!-- Events Table -->
-                <div class="bg-white overflow-hidden shadow-md sm:rounded-lg md:mx-0 mx-4">
+            <div class="flex justify-end mb-6">
+                <div class="inline-flex items-center shrink-0 rounded-full border border-gray-300 p-0.5 bg-white" role="group" aria-label="{{ __('View mode') }}">
+                    <button
+                        type="button"
+                        wire:click="setViewMode('card')"
+                        class="inline-flex items-center justify-center p-2 rounded-full transition-all duration-200 {{ $viewMode === 'card' ? 'bg-orange-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-800 hover:bg-white' }}"
+                        title="{{ __('Card view') }}"
+                        aria-pressed="{{ $viewMode === 'card' ? 'true' : 'false' }}"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 8.25 20.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+                        </svg>
+                        <span class="sr-only">{{ __('Card view') }}</span>
+                    </button>
+                    <button
+                        type="button"
+                        wire:click="setViewMode('list')"
+                        class="inline-flex items-center justify-center p-2 rounded-full transition-all duration-200 {{ $viewMode === 'list' ? 'bg-orange-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-800 hover:bg-white' }}"
+                        title="{{ __('List view') }}"
+                        aria-pressed="{{ $viewMode === 'list' ? 'true' : 'false' }}"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                        </svg>
+                        <span class="sr-only">{{ __('List view') }}</span>
+                    </button>
+                </div>
+            </div>
+
+            @if ($viewMode === 'list')
+                <div class="bg-white overflow-hidden shadow-md sm:rounded-lg">
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                            <thead class="bg-gray-200/50">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Venue</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registrations</th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Event') }}</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Date & Time') }}</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Venue') }}</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Registrations') }}</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Status') }}</th>
+                                    <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                @forelse($events as $event)
-                                    <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location.href='{{ route('admin.events.profile', $event->event_code) }}'">
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center gap-3">
-                                                @if($event->thumbnail_url)
-                                                    <img src="{{ $event->thumbnail_url }}" alt="{{ $event->title }}" class="w-10 h-10 border border-gray-300 rounded-full object-cover">
-                                                @else
-                                                    <div class="w-10 h-10 rounded-full bg-gray-200 border border-gray-300 flex items-center justify-center">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-gray-400">
+                                @forelse ($events as $event)
+                                    <tr wire:key="event-row-{{ $event->id }}" class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="flex items-center gap-3 min-w-0">
+                                                <div class="h-16 w-16 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+                                                    @if ($event->thumbnail_url)
+                                                        <img src="{{ $event->thumbnail_url }}" alt="" class="h-full w-full object-cover">
+                                                    @else
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-gray-400">
                                                             <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
                                                         </svg>
-                                                    </div>
-                                                @endif
-                                                <div class="text-md font-medium text-gray-900 hover:text-indigo-600 transition-colors">{{ Str::words($event->title, 5, '...') }}</div>
+                                                    @endif
+                                                </div>
+                                                <div class="min-w-0">
+                                                    @if ($event->trashed())
+                                                        <p class="text-sm font-semibold text-gray-900 truncate">{{ $event->title }}</p>
+                                                    @else
+                                                        <a href="{{ route('admin.events.profile', $event->event_code) }}" class="text-sm font-semibold text-gray-900 truncate block hover:text-orange-600 transition-colors">
+                                                            {{ $event->title }}
+                                                        </a>
+                                                    @endif
+                                                    @if ($event->description)
+                                                        <p class="text-xs text-gray-500 truncate italic capitalize w-52">{{ strip_tags($event->description) }}</p>
+                                                    @endif
+                                                </div>
                                             </div>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm text-gray-900">
-                                                {{ $event->start_date->format('d M, Y') }}
-                                            </div>
-                                            <div class="text-sm text-gray-500">
-                                                {{ $event->start_date->format('g:i A') }} - {{ $event->end_date->format('g:i A') }}
-                                            </div>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <p class="text-sm text-gray-900">{{ $event->start_date->format('d M, Y') }}</p>
+                                            <p class="text-xs text-gray-500">{{ $event->start_date->format('g:i A') }} - {{ $event->end_date->format('g:i A') }}</p>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm text-gray-900">{{ $event->venue ?? 'N/A' }}</div>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                            {{ $event->venue ?: '—' }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            @php
-                                                $statusClass = match($event->status) {
-                                                    'published' => 'bg-green-100 text-green-800',
-                                                    'cancelled' => 'bg-red-100 text-red-800',
-                                                    'completed' => 'bg-gray-100 text-gray-800',
-                                                    default => 'bg-yellow-100 text-yellow-800',
-                                                };
-                                            @endphp
-                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $statusClass }}">
-                                                {{ ucfirst($event->status) }}
-                                            </span>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-orange-600">
+                                            {{ number_format($event->registrations_count) }}
+                                            @if ($event->max_participants)
+                                                <span class="font-normal text-gray-500">/ {{ number_format($event->max_participants) }}</span>
+                                            @endif
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm text-gray-900">
-                                                {{ $event->registrations->count() }}
-                                                @if($event->max_participants)
-                                                    / {{ $event->max_participants }}
-                                                @endif
-                                            </div>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="text-xs px-2 py-0.5 rounded-full {{ $event->statusBadgeClasses() }}">{{ $event->displayStatus() }}</span>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" onclick="event.stopPropagation()">
-                                            <div class="flex justify-end gap-2">
-                                                <a 
-                                                    href="{{ route('admin.locations.events.edit', [$location->location_code, $event->id]) }}" 
-                                                    title="Edit Event"
-                                                    class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition"
+                                        <td class="px-4 py-3 whitespace-nowrap text-right">
+                                            <div
+                                                x-data="{
+                                                    open: false,
+                                                    position: { top: 0, right: 0 },
+                                                    setPosition($el) {
+                                                        const rect = $el.getBoundingClientRect();
+                                                        this.position = {
+                                                            top: rect.bottom,
+                                                            right: window.innerWidth - rect.right - window.scrollX
+                                                        };
+                                                    }
+                                                }"
+                                                class="relative inline-block text-left"
+                                                @click.away="open = false"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    @click="open = !open; $nextTick(() => { if (open) setPosition($el); })"
+                                                    x-ref="button"
+                                                    class="inline-flex items-center justify-center text-gray-400 hover:text-gray-600 hover:scale-110 transition-all focus:outline-none focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                                                    title="{{ __('Actions') }}"
+                                                    aria-label="{{ __('Actions') }}"
+                                                    aria-haspopup="true"
+                                                    :aria-expanded="open"
                                                 >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                                                    </svg>
-                                                </a>
-                                                <button 
-                                                    wire:click="delete({{ $event->id }})" 
-                                                    title="Delete Event"
-                                                    wire:confirm="Are you sure you want to delete this event?"
-                                                    class="bg-red-600 hover:bg-red-700 text-white p-2 rounded transition"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                                    <svg class="w-7 h-7 stroke-gray-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
                                                     </svg>
                                                 </button>
+
+                                                <div
+                                                    x-show="open"
+                                                    x-transition:enter="transition ease-out duration-100"
+                                                    x-transition:enter-start="transform opacity-0 scale-95"
+                                                    x-transition:enter-end="transform opacity-100 scale-100"
+                                                    x-transition:leave="transition ease-in duration-75"
+                                                    x-transition:leave-start="transform opacity-100 scale-100"
+                                                    x-transition:leave-end="transform opacity-0 scale-95"
+                                                    x-cloak
+                                                    :style="`position: fixed; top: ${position.top}px; right: ${position.right}px;`"
+                                                    class="w-44 z-[9999] origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                                                >
+                                                    <div class="py-1" role="menu" aria-orientation="vertical">
+                                                        @if ($event->trashed())
+                                                            @can('event.delete')
+                                                                <button
+                                                                    type="button"
+                                                                    wire:click="restore({{ $event->id }})"
+                                                                    @click="open = false"
+                                                                    class="flex w-full items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                                                                    role="menuitem"
+                                                                >
+                                                                    <svg class="w-3 h-3 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+                                                                    </svg>
+                                                                    <span>{{ __('Restore') }}</span>
+                                                                </button>
+                                                            @endcan
+                                                        @else
+                                                            <a
+                                                                href="{{ route('admin.events.profile', $event->event_code) }}"
+                                                                @click="open = false"
+                                                                class="flex items-center gap-3 px-4 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                                                                role="menuitem"
+                                                            >
+                                                                <svg class="w-3 h-3 text-slate-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                                </svg>
+                                                                <span>{{ __('View') }}</span>
+                                                            </a>
+                                                            @can('event.edit')
+                                                                <a
+                                                                    href="{{ route('admin.locations.events.edit', [$location->location_code, $event->id]) }}"
+                                                                    @click="open = false"
+                                                                    class="flex items-center gap-3 px-4 py-2 text-xs text-orange-500 hover:bg-gray-100 transition-colors"
+                                                                    role="menuitem"
+                                                                >
+                                                                    <svg class="w-3 h-3 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.823H3v-3.823L16.862 4.487Zm0 0L19.5 7.125" />
+                                                                    </svg>
+                                                                    <span>{{ __('Edit') }}</span>
+                                                                </a>
+                                                            @endcan
+                                                            @can('event.delete')
+                                                                <div class="border-t border-gray-100 my-1"></div>
+                                                                <button
+                                                                    type="button"
+                                                                    wire:click="delete({{ $event->id }})"
+                                                                    wire:confirm="{{ __('Archive this event?') }}"
+                                                                    @click="open = false"
+                                                                    class="flex w-full items-center gap-3 px-4 py-2 text-xs text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
+                                                                    role="menuitem"
+                                                                >
+                                                                    <svg class="w-3 h-3 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                                                    </svg>
+                                                                    <span>{{ __('Archive') }}</span>
+                                                                </button>
+                                                            @endcan
+                                                        @endif
+                                                    </div>
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
-                                            <div class="flex flex-col items-center">
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-12 text-gray-400 mb-4">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                                                </svg>
-                                                <p class="text-lg font-medium mb-2">No events found</p>
-                                                <p class="text-sm mb-4">Get started by creating your first event</p>
-                                                <a href="{{ route('admin.locations.events.create', $location->location_code) }}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg inline-block">
-                                                    Create Event
-                                                </a>
-                                            </div>
+                                        <td colspan="6" class="px-4 py-12 text-center text-gray-600">
+                                            @include('livewire.events.partials.empty-state')
                                         </td>
                                     </tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
-
-                    <!-- Pagination -->
-                    @if($events->hasPages())
-                        <div class="px-6 py-4 border-t border-gray-200">
-                            {{ $events->links() }}
-                        </div>
-                    @endif
                 </div>
-            </div>
+            @else
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    @forelse ($events as $event)
+                        <div wire:key="event-card-{{ $event->id }}" class="bg-white border border-gray-300 rounded-xl shadow-md overflow-hidden flex flex-col h-full">
+                            <div class="relative h-80 bg-gray-100 flex items-center justify-center overflow-hidden shrink-0">
+                                <span class="absolute top-2 right-2 z-10 shrink-0 text-xs px-2 py-0.5 rounded-full {{ $event->statusBadgeClasses() }}">
+                                    {{ $event->displayStatus() }}
+                                </span>
+                                @if ($event->thumbnail_url)
+                                    <img src="{{ $event->thumbnail_url }}" alt="" class="w-full h-full object-cover">
+                                @else
+                                    <p class="w-full h-full flex flex-col items-center justify-center text-gray-400 text-lg font-medium opacity-50">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-12 opacity-50">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                                        </svg>
+                                        {{ __('No image') }}
+                                    </p>
+                                @endif
+                            </div>
+                            <div class="p-4 flex flex-col flex-1">
+                                <div class="flex justify-between items-start gap-2 mb-2">
+                                    <div class="min-w-0 flex-1">
+                                        <h3 class="font-semibold text-gray-900 text-xl">{{ $event->title }}</h3>
+                                        @if ($event->description)
+                                            <p class="text-xs text-gray-500 my-1 line-clamp-2 italic capitalize">{{ strip_tags($event->description) }}</p>
+                                        @endif
+                                    </div>
+                                </div>
+                                <p>
+                                    <span class="text-sm text-gray-500">{{ __('Date') }}: </span>
+                                    <span class="text-orange-600 text-sm font-bold">{{ $event->start_date->format('d M Y') }}</span>
+                                </p>
+                                <p>
+                                    <span class="text-sm text-gray-500">{{ __('Time') }}: </span>
+                                    <span class="text-orange-600 text-sm font-bold">{{ $event->start_date->format('g:i A') }} – {{ $event->end_date->format('g:i A') }}</span>
+                                </p>
+                                <p>
+                                    <span class="text-sm text-gray-500">{{ __('Venue') }}: </span>
+                                    <span class="text-orange-600 text-sm font-bold">{{ $event->venue ?: __('N/A') }}</span>
+                                </p>
+                                <p>
+                                    <span class="text-sm text-gray-500">{{ __('Registrations') }}: </span>
+                                    <span class="text-orange-600 text-sm font-bold">
+                                        {{ number_format($event->registrations_count) }}
+                                        @if ($event->max_participants)
+                                            / {{ number_format($event->max_participants) }}
+                                        @endif
+                                    </span>
+                                </p>
+                                <div class="mt-auto flex flex-wrap gap-2 border-t border-gray-200 pt-2">
+                                    @if ($event->trashed())
+                                        @can('event.delete')
+                                            <button type="button" wire:click="restore({{ $event->id }})" class="text-xs bg-green-600 text-white px-3 py-1.5 rounded-full hover:bg-green-700 hover:text-green-100 transition-all duration-300">{{ __('Restore') }}</button>
+                                        @endcan
+                                    @else
+                                        <a href="{{ route('admin.events.profile', $event->event_code) }}" class="flex items-center gap-1 text-xs text-slate-800 hover:text-slate-500 hover:underline transition-all duration-300">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                            </svg>
+                                            <span>{{ __('View') }}</span>
+                                        </a>
+                                        @can('event.edit')
+                                            <span class="text-gray-400">|</span>
+                                            <a
+                                                href="{{ route('admin.locations.events.edit', [$location->location_code, $event->id]) }}"
+                                                class="flex items-center gap-1 text-xs text-slate-800 hover:text-slate-500 hover:underline transition-all duration-300"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.823H3v-3.823L16.862 4.487Zm0 0L19.5 7.125" />
+                                                </svg>
+                                                <span>{{ __('Edit') }}</span>
+                                            </a>
+                                        @endcan
+                                        @can('event.delete')
+                                            <span class="text-gray-400">|</span>
+                                            <button
+                                                type="button"
+                                                wire:click="delete({{ $event->id }})"
+                                                wire:confirm="{{ __('Archive this event?') }}"
+                                                class="cursor-pointer flex items-center gap-1 text-xs text-red-800 hover:text-red-500 hover:underline transition-all duration-300"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                                </svg>
+                                                <span>{{ __('Archive') }}</span>
+                                            </button>
+                                        @endcan
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="col-span-full text-center py-12 text-gray-600">
+                            @include('livewire.events.partials.empty-state')
+                        </div>
+                    @endforelse
+                </div>
+            @endif
+
+            @if ($events->hasPages())
+                <div class="mt-8">
+                    {{ $events->links() }}
+                </div>
+            @endif
         </div>
-    @else
-        @php abort(403, 'Unauthorized.'); @endphp
-    @endcan
+    </div>
 </div>
