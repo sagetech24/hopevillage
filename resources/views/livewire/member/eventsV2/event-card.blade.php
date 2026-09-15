@@ -101,7 +101,7 @@
                 <a href="/member/event/{{ $event['event_code'] }}" class="text-gray-900 text-xl font-bold hover:text-orange-600 transition-colors flex-1">{{ $event['title'] }}</a>
             </div>
             {{-- add the description here with truncate and add ... at the end if the description is longer than 100 characters --}}
-            <p class="text-gray-800 text-xs line-clamp-2 italic">{{ str()->words($event['description'] ?? '', 15) }}</p>
+            <p class="text-gray-800 text-xs line-clamp-2 italic">{{ str()->words(strip_tags($event['description'] ?? ''), 15) }}</p>
 
             {{-- add the event date here with the format of M d, Y g:i A --}}
             <p class="text-gray-800 text-xs flex gap-1 items-center mt-1">

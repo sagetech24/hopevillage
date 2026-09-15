@@ -79,7 +79,9 @@
                         <div class="space-y-2 text-sm text-gray-700">
                             <div class="flex flex-col gap-1">
                                 <span class="font-bold text-xs text-gray-600">Description:</span>
-                                <span>{{ $event->description }}</span>
+                                <div class="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700">
+                                    {!! $event->description !!}
+                                </div>
                             </div>
                             <div>
                                 <span class="font-bold text-xs text-gray-600">Location:</span>

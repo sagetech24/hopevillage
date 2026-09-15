@@ -1,11 +1,11 @@
 <div>
     @can('event.profile')
         <x-slot name="header">
-            <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+            <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 md:px-0 xl:px-0 px-3">
                 <div class="flex md:flex-row flex-col md:gap-0 gap-4 justify-between items-center">
                     <div class="flex items-center gap-4">
                         <h2 class="font-semibold md:text-xl text-2xl text-gray-800 leading-tight">
-                            {{ $event->title }} - Profile
+                            {{ $event->title }}
                         </h2>
                     </div>
                     <a href="{{ route('admin.events.index') }}" class="text-orange-600 md:text-base text-md hover:text-orange-700 font-normal py-2 px-4 rounded-full">
@@ -16,7 +16,7 @@
         </x-slot>
 
         <div class="py-12">
-            <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">            
+            <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 md:px-0 xl:px-0 px-3">            
                 <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-6 md:mx-0 mx-4">
                     <!-- Left Column - Event Details -->
                     <div class="lg:col-span-2 space-y-6">
@@ -29,63 +29,36 @@
 
                         <!-- Event Information Card -->
                         <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Event Information</h3>
+                            <div class="mb-4">
+                                <label class="text-sm font-semibold text-gray-500">Title:</label>
+                                <h3 class="text-2xl font-semibold text-gray-800">{{ $event->title }}</h3>
+                            </div>
                             
                             <div class="space-y-4">
-                                <div>
-                                    <label class="text-sm font-medium text-gray-500">Title</label>
-                                    <p class="text-gray-900">{{ $event->title }}</p>
-                                </div>
-                                
                                 @if($event->description)
-                                <div>
-                                    <label class="text-sm font-medium text-gray-500">Description</label>
-                                    <p class="text-gray-900">{{ $event->description }}</p>
-                                </div>
+                                    <div>
+                                        <label class="text-sm font-semibold text-gray-500">Description:</label>
+                                        <div class="prose prose-sm sm:prose max-w-none prose-headings:text-gray-900 prose-p:text-gray-700">
+                                            {!! $event->description !!}
+                                        </div>
+                                    </div>
                                 @endif
                             </div>
                         </div>
 
                         <!-- Date & Time Information Card -->
                         <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Date & Time</h3>
-                            
-                            <div class="space-y-4">
-                                <div class="flex items-start gap-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                                    </svg>
-                                    <div>
-                                        <label class="text-sm font-medium text-gray-500">Start Date & Time</label>
-                                        <p class="text-gray-900">
-                                            {{ $event->start_date->format('d M Y g:i A') }}
-                                        </p>
-                                    </div>
+                            <h3 class="text-sm font-semibold text-gray-800 mb-4 border-b pb-2">Date & Time</h3>
+                            <div class="flex items-start gap-2">
+                                <svg viewBox="0 0 1024 1024" class="size-14" version="1.1" xmlns="http://www.w3.org/2000/svg" fill="#000000"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path d="M716 190.9v-67.8h-44v67.8H352v-67.8h-44v67.8H92v710h840v-710H716z m-580 44h172v69.2h44v-69.2h320v69.2h44v-69.2h172v151.3H136V234.9z m752 622H136V402.2h752v454.7z" fill="#39393A"></path><path d="M319 565.7m-33 0a33 33 0 1 0 66 0 33 33 0 1 0-66 0Z" fill="#ff7300"></path><path d="M510 565.7m-33 0a33 33 0 1 0 66 0 33 33 0 1 0-66 0Z" fill="#ff7300"></path><path d="M701.1 565.7m-33 0a33 33 0 1 0 66 0 33 33 0 1 0-66 0Z" fill="#ff7300"></path><path d="M319 693.4m-33 0a33 33 0 1 0 66 0 33 33 0 1 0-66 0Z" fill="#ff7300"></path><path d="M510 693.4m-33 0a33 33 0 1 0 66 0 33 33 0 1 0-66 0Z" fill="#ff7300"></path><path d="M701.1 693.4m-33 0a33 33 0 1 0 66 0 33 33 0 1 0-66 0Z" fill="#ff7300"></path></g></svg>
+                                <div class="flex flex-col mt-1">
+                                    <p class="text-gray-900">
+                                        <span class="font-bold">Start:</span> {{ $event->start_date->format('d M Y g:i A') }}
+                                    </p>
+                                    <p class="text-gray-900">
+                                        <span class="font-bold mr-3.5">End:</span>{{ $event->end_date->format('d M Y g:i A') }}
+                                    </p>
                                 </div>
-                                <div class="flex items-start gap-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                                    </svg>
-                                    <div>
-                                        <label class="text-sm font-medium text-gray-500">End Date & Time</label>
-                                        <p class="text-gray-900">
-                                            {{ $event->end_date->format('d M Y g:i A') }}
-                                        </p>
-                                    </div>
-                                </div>
-
-
-                                {{-- @if($event->venue)
-                                <div class="flex items-start gap-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" />
-                                    </svg>
-                                    <div>
-                                        <label class="text-sm font-medium text-gray-500">Venue</label>
-                                        <p class="text-gray-900">{{ $event->venue }}</p>
-                                    </div>
-                                </div>
-                                @endif --}}
                             </div>
                         </div>
 
@@ -153,7 +126,6 @@
                     <div class="space-y-6">
                         <!-- Event QR Code Card -->
                         <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Event QR Code</h3>
                             <div 
                                 x-data="{
                                     qrCodeImage: '{{ $qrCodeImage }}',
@@ -213,7 +185,7 @@
                                 }"
                             >
                                 <div class="flex items-center justify-center mb-4">
-                                    <img :src="qrCodeImage" alt="Event QR Code" class="w-full max-w-md h-64 object-contain rounded-lg border border-gray-300" id="event-qr-image">
+                                    <img :src="qrCodeImage" alt="Event QR Code" class="w-full h-50 object-contain" id="event-qr-image">
                                 </div>
                                 <div class="flex gap-3 justify-center">
                                     <button 
@@ -262,13 +234,6 @@
                                     </svg>
                                     Update Event
                                 </a>
-                                <a href="{{ route('admin.locations.profile', $event->location->location_code) }}" class="flex items-center justify-center gap-2 w-full bg-gray-600 hover:bg-gray-700 hover:-translate-y-0.5 text-white text-center font-semibold py-4 px-4 rounded-lg transition-all duration-200">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                                    </svg>
-                                    View Location
-                                </a>
                                 <a href="{{ route('admin.locations.events.index', $event->location->location_code) }}" class="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 hover:-translate-y-0.5 text-white text-center font-semibold py-4 px-4 rounded-lg transition-all duration-200">
                                     <svg class="size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M3 9H21M7 3V5M17 3V5M6 12H8M11 12H13M16 12H18M6 15H8M11 15H13M16 15H18M6 18H8M11 18H13M16 18H18M6.2 21H17.8C18.9201 21 19.4802 21 19.908 20.782C20.2843 20.5903 20.5903 20.2843 20.782 19.908C21 19.4802 21 18.9201 21 17.8V8.2C21 7.07989 21 6.51984 20.782 6.09202C20.5903 5.71569 20.2843 5.40973 19.908 5.21799C19.4802 5 18.9201 5 17.8 5H6.2C5.0799 5 4.51984 5 4.09202 5.21799C3.71569 5.40973 3.40973 5.71569 3.21799 6.09202C3 6.51984 3 7.07989 3 8.2V17.8C3 18.9201 3 19.4802 3.21799 19.908C3.40973 20.2843 3.71569 20.5903 4.09202 20.782C4.51984 21 5.07989 21 6.2 21Z" stroke="#ffffff" stroke-width="2" stroke-linecap="round"></path> </g></svg>
                                     All Events
@@ -292,44 +257,48 @@
                                     </p>
                                 </div>
                                 @if($event->max_participants)
-                                <div>
-                                    <label class="text-sm font-medium text-gray-500">Available Spots</label>
-                                    <p class="text-2xl font-bold text-gray-900">
-                                        {{ max(0, $event->max_participants - $event->registrations->count()) }}
-                                    </p>
-                                </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-500">Available Spots</label>
+                                        <p class="text-2xl font-bold text-gray-900">
+                                            {{ max(0, $event->max_participants - $event->registrations->count()) }}
+                                        </p>
+                                    </div>
                                 @endif
-                                <div>
-                                    <label class="text-sm font-medium text-gray-500">Created By</label>
-                                    <p class="text-gray-900">{{ $event->creator->name ?? 'N/A' }}</p>
+                                <div class="flex justify-between items-center gap-2">
+                                    <div class="flex flex-col gap-1">
+                                        <label class="text-sm font-medium text-gray-500">Created By:</label>
+                                        <p class="text-gray-900">{{ $event->creator->name ?? 'N/A' }}</p>
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <label class="text-sm font-medium text-gray-500">Created At:</label>
+                                        <p class="text-gray-900">{{ $event->created_at->format('M d, Y') }}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label class="text-sm font-medium text-gray-500">Created At</label>
-                                    <p class="text-gray-900">{{ $event->created_at->format('M d, Y g:i A') }}</p>
-                                </div>
-                                <div>
-                                    <label class="text-sm font-medium text-gray-500">Status</label>
-                                    <p>
-                                        @php
-                                            $isEventFinished = $event->end_date->isPast();
-                                            $displayStatus = $isEventFinished ? 'Finished' : ($event->status ?: 'Finished');
-                                            $statusClass = $isEventFinished 
-                                                ? 'bg-gray-100 text-gray-800 border border-gray-500'
-                                                : match($event->status) {
-                                                    'published' => 'bg-green-100 text-green-800 border border-green-500',
-                                                    'cancelled' => 'bg-red-100 text-red-800 border border-red-500',
-                                                    'completed' => 'bg-gray-100 text-gray-800 border border-gray-500',
-                                                    default => 'bg-yellow-100 text-yellow-800 border border-yellow-500',
-                                                };
-                                        @endphp
-                                        <span class="px-3 py-1 inline-flex text-md leading-5 font-semibold rounded-full {{ $statusClass }}">
-                                            {{ ucfirst($displayStatus) }}
-                                        </span>
-                                    </p>
-                                </div>
-                                <div>
-                                    <label class="text-sm font-medium text-gray-500">Event Code</label>
-                                    <p class="text-gray-900 font-mono">{{ $event->event_code }}</p>
+                                <div class="flex justify-between items-center gap-2">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-500">Status</label>
+                                        <p>
+                                            @php
+                                                $isEventFinished = $event->end_date->isPast();
+                                                $displayStatus = $isEventFinished ? 'Finished' : ($event->status ?: 'Finished');
+                                                $statusClass = $isEventFinished 
+                                                    ? 'bg-gray-100 text-gray-800 border border-gray-500'
+                                                    : match($event->status) {
+                                                        'published' => 'bg-green-100 text-green-800 border border-green-500',
+                                                        'cancelled' => 'bg-red-100 text-red-800 border border-red-500',
+                                                        'completed' => 'bg-gray-100 text-gray-800 border border-gray-500',
+                                                        default => 'bg-yellow-100 text-yellow-800 border border-yellow-500',
+                                                    };
+                                            @endphp
+                                            <span class="px-3 py-1 inline-flex text-md leading-5 font-semibold rounded-full {{ $statusClass }}">
+                                                {{ ucfirst($displayStatus) }}
+                                            </span>
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-500">Event Code</label>
+                                        <p class="text-gray-900 font-mono">{{ $event->event_code }}</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>

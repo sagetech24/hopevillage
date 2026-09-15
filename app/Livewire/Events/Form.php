@@ -52,7 +52,7 @@ class Form extends Component
                 ->findOrFail($this->eventId);
             
             $this->title = $event->title;
-            $this->description = $event->description;
+            $this->description = $event->description ?? '';
             $this->start_date = $event->start_date->format('Y-m-d');
             $this->start_time = $event->start_date->format('H:i');
             $this->end_date = $event->end_date->format('Y-m-d');
