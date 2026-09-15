@@ -21,7 +21,8 @@
 @endphp
 
 <article {{ $attributes->merge([
-    'class' => 'group flex flex-col h-full bg-white rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 '.($isMuted
+    'data-voucher-card' => true,
+    'class' => 'group relative z-0 flex flex-col h-full bg-white rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 '.($isMuted
         ? 'border-gray-200 hover:border-gray-300 opacity-95'
         : ($category === 'pending_approval'
             ? 'border-amber-200 hover:border-amber-300'
