@@ -77,7 +77,69 @@ class Location extends Model implements HasMedia
     public function getThumbnailUrlAttribute(): ?string
     {
         $media = $this->getFirstMedia('thumbnail');
+
         return $media ? $media->getUrl() : null;
+    }
+
+    public function formattedAddress(): string
+    {
+        return trim(implode(', ', array_filter([
+            $this->address,
+            $this->city,
+            $this->province,
+            $this->postal_code,
+        ])));
+    }
+
+    public function mapThumbnailUrl(int $width = 400, int $height = 250): ?string
+    {
+        $apiKey = config('services.google_maps.api_key');
+
+        if (! $apiKey) {
+            return null;
+        }
+
+        if ($this->latitude && $this->longitude) {
+            $lat = $this->latitude;
+            $lng = $this->longitude;
+
+            return "https://maps.googleapis.com/maps/api/staticmap?center={$lat},{$lng}&zoom=15&size={$width}x{$height}&markers=color:red|{$lat},{$lng}&key={$apiKey}";
+        }
+
+        $address = $this->formattedAddress();
+
+        if ($address === '') {
+            return null;
+        }
+
+        $encoded = urlencode($address);
+
+        return "https://maps.googleapis.com/maps/api/staticmap?center={$encoded}&zoom=15&size={$width}x{$height}&markers=color:red|{$encoded}&key={$apiKey}";
+    }
+
+    public function coverImageUrl(int $width = 400, int $height = 250): ?string
+    {
+        return $this->thumbnail_url ?: $this->mapThumbnailUrl($width, $height);
+    }
+
+    public function displayStatus(): string
+    {
+        if ($this->trashed()) {
+            return __('Archived');
+        }
+
+        return $this->is_active ? __('Active') : __('Inactive');
+    }
+
+    public function statusBadgeClasses(): string
+    {
+        if ($this->trashed()) {
+            return 'bg-red-200 border border-red-400 text-red-800';
+        }
+
+        return $this->is_active
+            ? 'bg-green-200 border border-green-400 text-green-800'
+            : 'bg-gray-200 border border-gray-400 text-gray-800';
     }
 
     /**
@@ -96,13 +158,11 @@ class Location extends Model implements HasMedia
 
     /**
      * Generate a unique location code.
-     *
-     * @return string
      */
     protected static function generateUniqueLocationCode(): string
     {
         do {
-            $code = 'LOC-' . strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
+            $code = 'LOC-'.strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
         } while (static::where('location_code', $code)->exists());
 
         return $code;
