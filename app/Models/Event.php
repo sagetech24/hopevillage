@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -121,5 +122,99 @@ class Event extends Model implements HasMedia
             'completed' => 'bg-gray-200 border border-gray-400 text-gray-800',
             default => 'bg-yellow-200 border border-yellow-400 text-yellow-800',
         };
+    }
+
+    public function isHappeningNow(): bool
+    {
+        $now = now();
+
+        return $this->start_date->lte($now) && $this->end_date->gte($now);
+    }
+
+    public function isUpcoming(): bool
+    {
+        return $this->start_date->isFuture();
+    }
+
+    public function hasEnded(): bool
+    {
+        return $this->end_date->isPast();
+    }
+
+    public function isFull(): bool
+    {
+        if (! $this->max_participants || $this->max_participants <= 0) {
+            return false;
+        }
+
+        $count = $this->registrations_count ?? $this->registrations()->count();
+
+        return $count >= $this->max_participants;
+    }
+
+    public function isAcceptingRegistrations(): bool
+    {
+        return $this->status === 'published'
+            && ! $this->hasEnded()
+            && ! $this->isFull();
+    }
+
+    public function scheduleKey(): string
+    {
+        if ($this->isHappeningNow()) {
+            return 'happening';
+        }
+
+        if ($this->isUpcoming()) {
+            return 'upcoming';
+        }
+
+        return 'ended';
+    }
+
+    public function scheduleLabel(): string
+    {
+        return match ($this->scheduleKey()) {
+            'happening' => __('Happening now'),
+            'upcoming' => __('Upcoming'),
+            default => __('Ended'),
+        };
+    }
+
+    public function scheduleBadgeClasses(): string
+    {
+        return match ($this->scheduleKey()) {
+            'happening' => 'bg-emerald-100 border border-emerald-500 text-emerald-800',
+            'upcoming' => 'bg-orange-100 border border-orange-400 text-orange-800',
+            default => 'bg-gray-100 border border-gray-400 text-gray-700',
+        };
+    }
+
+    public function formattedSchedule(): string
+    {
+        if ($this->start_date->isSameDay($this->end_date)) {
+            return $this->start_date->format('d M Y').' · '.$this->start_date->format('g:i A').' – '.$this->end_date->format('g:i A');
+        }
+
+        return $this->start_date->format('d M Y, g:i A').' – '.$this->end_date->format('d M Y, g:i A');
+    }
+
+    /**
+     * Location profile preview: happening now, then upcoming (soonest first), then recently ended.
+     */
+    public function scopeForLocationProfile(Builder $query, int $limit = 5): Builder
+    {
+        $now = now();
+
+        return $query
+            ->with('media')
+            ->withCount([
+                'registrations',
+                'registrations as attended_count' => fn ($registrations) => $registrations->where('status', 'attended'),
+            ])
+            ->orderByRaw('CASE WHEN start_date <= ? AND end_date >= ? THEN 0 WHEN start_date > ? THEN 1 ELSE 2 END', [$now, $now, $now])
+            ->orderByRaw('CASE WHEN start_date > ? THEN start_date END ASC', [$now])
+            ->orderByDesc('start_date')
+            ->limit($limit);
     }
 }

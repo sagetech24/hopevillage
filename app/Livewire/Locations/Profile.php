@@ -20,7 +20,7 @@ class Profile extends Component
     public function loadLocation()
     {
         $this->location = Location::with(['events' => function ($query) {
-            $query->latest()->take(5);
+            $query->forLocationProfile();
         }])->where('location_code', $this->locationCode)->firstOrFail();
     }
 
