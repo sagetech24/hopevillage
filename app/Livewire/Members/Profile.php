@@ -5,6 +5,8 @@ namespace App\Livewire\Members;
 use App\Models\MemberActivity;
 use App\Models\PointLog;
 use App\Models\User;
+use App\Services\MemberRankingService;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\On;
@@ -12,7 +14,7 @@ use Livewire\Component;
 
 class Profile extends Component
 {
-    private const RECENT_ACTIVITIES_LIMIT = 25;
+    public const ACTIVITIES_PAGE_SIZE = 15;
 
     private const RECENT_POINT_LOGS_LIMIT = 25;
 
@@ -30,6 +32,8 @@ class Profile extends Component
 
     /** @var int|null ID of member selected for "Update Mobile Number" modal. */
     public ?int $updateMobileUserId = null;
+
+    public int $activitiesPerPage = self::ACTIVITIES_PAGE_SIZE;
 
     protected $listeners = [
         'updateMobileModalClosed' => 'closeUpdateMobileModal',
@@ -83,6 +87,11 @@ class Profile extends Component
         $this->syncTypeOfWorkFromMember();
     }
 
+    public function loadMoreActivities(): void
+    {
+        $this->activitiesPerPage += self::ACTIVITIES_PAGE_SIZE;
+    }
+
     /**
      * @return Collection<int, MemberActivity>
      */
@@ -90,10 +99,34 @@ class Profile extends Component
     {
         return MemberActivity::query()
             ->where('user_id', $this->member->id)
-            ->with(['activityType', 'location', 'pointLog'])
-            ->latest('activity_time')
-            ->limit(self::RECENT_ACTIVITIES_LIMIT)
+            ->with(['activityType', 'location', 'amenity', 'event', 'pointLog'])
+            ->orderByDesc('activity_time')
+            ->orderByDesc('id')
+            ->limit($this->activitiesPerPage)
             ->get();
+    }
+
+    public function dateHeading(string $date): string
+    {
+        if ($date === 'unknown') {
+            return 'Unknown date';
+        }
+
+        $day = Carbon::parse($date)->startOfDay();
+
+        if ($day->isToday()) {
+            return 'Today';
+        }
+
+        if ($day->isYesterday()) {
+            return 'Yesterday';
+        }
+
+        if ($day->isCurrentYear()) {
+            return $day->format('l, M j');
+        }
+
+        return $day->format('M j, Y');
     }
 
     /**
@@ -226,12 +259,64 @@ class Profile extends Component
         return config('member.type_of_work_options', ['Migrant worker', 'Migrant domestic worker', 'Others']);
     }
 
+    public function getUsedVouchersCountProperty(): int
+    {
+        $merchantRedeemed = $this->member->vouchers()
+            ->wherePivot('status', 'redeemed')
+            ->count();
+
+        $adminRedeemed = $this->member->adminVouchers()
+            ->wherePivot('status', 'redeemed')
+            ->count();
+
+        return $merchantRedeemed + $adminRedeemed;
+    }
+
+    public function getRankProperty(): int
+    {
+        return app(MemberRankingService::class)->rankFor($this->member);
+    }
+
+    public function getRankOrdinalProperty(): string
+    {
+        $rank = $this->rank;
+        if ($rank < 1) {
+            return '';
+        }
+
+        return $rank.match ($rank) {
+            1 => 'st',
+            2 => 'nd',
+            3 => 'rd',
+            default => '',
+        };
+    }
+
+    public function getMemberCountProperty(): int
+    {
+        return app(MemberRankingService::class)->memberCount();
+    }
+
     public function render()
     {
+        $recentActivities = $this->loadRecentActivities();
+        $totalActivitiesCount = MemberActivity::query()
+            ->where('user_id', $this->member->id)
+            ->count();
+
         return view('livewire.members.profile', [
             'member' => $this->member,
             'typeOfWorkOptions' => $this->getTypeOfWorkOptions(),
-            'recentActivities' => $this->loadRecentActivities(),
+            'groupedActivities' => $recentActivities->groupBy(
+                function (MemberActivity $activity) {
+                    $time = $activity->activity_time ?? $activity->created_at;
+
+                    return $time?->toDateString() ?? 'unknown';
+                }
+            ),
+            'loadedActivitiesCount' => $recentActivities->count(),
+            'totalActivitiesCount' => $totalActivitiesCount,
+            'hasMoreActivities' => $recentActivities->count() < $totalActivitiesCount,
             'recentPointLogs' => $this->loadRecentPointLogs(),
         ])->layout('layouts.app');
     }

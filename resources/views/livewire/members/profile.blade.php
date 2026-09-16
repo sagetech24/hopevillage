@@ -5,7 +5,7 @@
 
     @can('member.profile')
         <x-slot name="header">
-            <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+            <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 md:px-0 xl:px-0 px-3">
                 <div class="flex md:flex-row flex-col md:gap-0 gap-4 justify-between items-center">
                     <div class="flex items-center gap-4">
                         <h2 class="font-semibold md:text-xl text-2xl text-gray-800 leading-tight">
@@ -27,7 +27,7 @@
         </x-slot>
 
         <div class="py-12">
-            <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+            <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 md:px-0 xl:px-0 px-3">
                 @if (session()->has('message') || session()->has('error'))
                     <div 
                         x-data="{ 
@@ -211,77 +211,106 @@
                             </div>
                             <div class="rounded-xl border border-gray-300 bg-yellow-50 p-4 shadow-sm">
                                 <p class="text-xs text-gray-600">Used Vouchers</p>
-                                <p class="text-2xl font-bold text-gray-800">{{ $member->vouchers()->wherePivot('status', 'redeemed')->count() }}</p>
+                                <p class="text-2xl font-bold text-gray-800">{{ $this->usedVouchersCount }}</p>
                             </div>
                             <div class="rounded-xl border border-gray-300 bg-orange-50 p-4 shadow-sm">
-                                <p class="text-xs text-gray-600">Ranking (Coming soon)</p>
+                                <p class="text-xs text-gray-600">Ranking</p>
                                 <p class="text-2xl font-bold text-gray-800">
-                                    {{-- {{ $member->vouchers->count() }} --}}
-                                    -
+                                    @if($this->rank > 0 && $this->memberCount > 0)
+                                        {{ $this->rankOrdinal }}
+                                        <span class="text-gray-500 text-sm font-medium">out of {{ number_format($this->memberCount) }}</span>
+                                    @else
+                                        —
+                                    @endif
                                 </p>
                             </div>
                         </div>
                         
                         <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6">
-                            <div class="flex items-center justify-between mb-4 border-b pb-2">
-                                <h3 class="text-lg font-semibold text-gray-800">Recent Member Activities</h3>
+                            <div class="flex items-center justify-between gap-3 mb-4 border-b pb-2">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-800">Recent Member Activities</h3>
+                                    @if($totalActivitiesCount > 0)
+                                        <p class="text-xs text-gray-400 mt-0.5">
+                                            Showing {{ $loadedActivitiesCount }} of {{ $totalActivitiesCount }} {{ $totalActivitiesCount === 1 ? 'activity' : 'activities' }}
+                                        </p>
+                                    @endif
+                                </div>
 
                                 @can('can_add_activity_manually')
                                     <button
                                         type="button"
                                         wire:click="$dispatch('openAddActivityModal')"
-                                        class="text-sm hover:underline hover:scale-105 transition-all duration-300 text-orange-500 hover:text-orange-600 cursor-pointer"
+                                        class="shrink-0 text-sm hover:underline hover:scale-105 transition-all duration-300 text-orange-500 hover:text-orange-600 cursor-pointer"
                                     >
                                         Manually Add Activity
                                     </button>
-                                @endif
+                                @endcan
                             </div>
-                            <div class="space-y-3 overflow-y-auto max-h-[350px]">
-                                @forelse($recentActivities as $activity)
-                                    <div class="rounded-xl border border-gray-200 p-4 hover:bg-gray-50">
-                                        <div class="flex items-start justify-between gap-4">
-                                            <div>
-                                                <div class="flex items-center gap-2">
-                                                    <p class="text-sm font-bold text-gray-800">
-                                                        {{ $activity->activityType?->description ?? $activity->activityType?->name ?? 'Some Activity' }}
-                                                    </p>
-                                                    @can('can_void_member_activity')
-                                                        <livewire:members.set-activity-void-button 
-                                                            :member-activity="$activity" 
-                                                            wire:click="refreshMember"
-                                                            :key="'void-'.$activity->id" 
-                                                        />
-                                                    @endcan
-                                                </div>
-                                                <p class="text-xs text-gray-500 mt-2">
-                                                    {{ $activity->activity_time?->format('M d, Y g:i A') ?? '-' }}
-                                                    @if($activity->location)
-                                                        • {{ $activity->location->name }}
-                                                    @endif
+                            <div class="overflow-y-auto max-h-[560px] -mx-1 px-1">
+                                @forelse($groupedActivities as $dateKey => $dayActivities)
+                                    <section class="mb-6 last:mb-0" wire:key="profile-day-{{ $dateKey }}">
+                                        <div class="sticky top-0 z-10 flex items-baseline justify-between gap-3 mb-3 px-1 py-1.5 bg-white/95 backdrop-blur-sm">
+                                            <h4 class="text-sm font-bold text-gray-900 tracking-tight">
+                                                {{ $this->dateHeading($dateKey) }}
+                                            </h4>
+                                            @if($dateKey !== 'unknown')
+                                                <p class="text-[11px] font-medium text-gray-400 uppercase tracking-wide">
+                                                    {{ \Carbon\Carbon::parse($dateKey)->format('M d, Y') }}
                                                 </p>
-                                                @if($activity->description)
-                                                    <p class="text-sm text-gray-700 mt-1">{{ $activity->description }}</p>
-                                                @endif
-                                            </div>
-                                            @if($activity->pointLog !== null)
-                                                <div class="text-right">
-                                                    <p class="text-xs text-gray-500">Points</p>
-                                                    <p class="text-lg font-bold text-gray-800">
-                                                        {{ $activity->pointLog->points }}
-                                                    </p>
-                                                </div>
                                             @endif
                                         </div>
-                                    </div>
+
+                                        <ol class="relative ms-3 border-s-2 border-orange-100">
+                                            @foreach($dayActivities as $activity)
+                                                <x-member-activity.timeline-item
+                                                    :activity="$activity"
+                                                    :show-void-button="auth()->user()?->can('can_void_member_activity')"
+                                                    wire:key="profile-activity-{{ $activity->id }}"
+                                                />
+                                            @endforeach
+                                        </ol>
+                                    </section>
                                 @empty
-                                    <div class="border border-dashed border-gray-300 rounded-lg bg-gray-50/50 p-4 w-full text-center py-8 text-sm text-gray-500 font-semibold">
-                                        No activities found.
+                                    <div class="bg-gray-50 rounded-2xl border border-dashed border-gray-200 px-6 py-12 text-center">
+                                        <div class="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-orange-50 text-orange-400">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-7" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                            </svg>
+                                        </div>
+                                        <h4 class="text-base font-semibold text-gray-900 mb-1">No activities yet</h4>
+                                        <p class="text-sm text-gray-500">This member has no recorded activities.</p>
                                     </div>
                                 @endforelse
+
+                                @if($hasMoreActivities)
+                                    <div class="mt-2 mb-1 text-center">
+                                        <button
+                                            type="button"
+                                            wire:click="loadMoreActivities"
+                                            wire:loading.attr="disabled"
+                                            wire:target="loadMoreActivities"
+                                            class="inline-flex items-center justify-center gap-2 min-w-[160px] px-6 py-2.5 text-sm font-semibold text-orange-600 bg-white border border-orange-200 rounded-full shadow-sm hover:bg-orange-50 hover:border-orange-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                        >
+                                            <span wire:loading.remove wire:target="loadMoreActivities">Load more</span>
+                                            <span wire:loading wire:target="loadMoreActivities" class="inline-flex items-center gap-2">
+                                                <span class="inline-block size-4 animate-spin rounded-full border-2 border-orange-200 border-t-orange-500" aria-hidden="true"></span>
+                                                Loading...
+                                            </span>
+                                        </button>
+                                        <p class="mt-2 text-[11px] text-gray-400">
+                                            {{ $totalActivitiesCount - $loadedActivitiesCount }} more {{ ($totalActivitiesCount - $loadedActivitiesCount) === 1 ? 'activity' : 'activities' }}
+                                        </p>
+                                    </div>
+                                @elseif($loadedActivitiesCount > 0)
+                                    <p class="mb-1 text-center text-[11px] text-gray-400">
+                                        All activities loaded
+                                    </p>
+                                @endif
                             </div>
                         </div>
 
-                        <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6">
+                        {{-- <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6">
                             <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Recent Point Logs</h3>
 
                             <div class="space-y-3 overflow-y-auto max-h-[350px]">
@@ -316,7 +345,7 @@
                                     </div>
                                 @endforelse
                             </div>
-                        </div>
+                        </div> --}}
                     </div>
                 </div>
             </div>
