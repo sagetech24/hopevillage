@@ -4,12 +4,15 @@ namespace App\Livewire\Admin;
 
 use App\Models\ActivityType;
 use App\Models\MemberActivity;
+use App\Services\PointsService;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class EntryScansPerLocation extends Component
 {
     private const ATTEND_EVENT_TYPE_ID = 7;
+
+    private const VOUCHER_REDEMPTION_LABEL = 'Voucher redemption';
 
     private const CHART_COLORS = [
         ['bg' => 'rgba(59, 130, 246, 0.8)', 'border' => 'rgb(59, 130, 246)'],
@@ -33,21 +36,8 @@ class EntryScansPerLocation extends Component
 
     public function getActivityTypesDataProperty(): array
     {
-        $activityTypes = ActivityType::where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
-        if ($activityTypes->isEmpty()) {
-            return [
-                'labels' => [],
-                'datasets' => [],
-            ];
-        }
-
         $startDate = now()->subDays(29)->startOfDay();
         $endDate = now()->endOfDay();
-
-        $countsByTypeAndDate = $this->aggregatedActivityCounts($startDate, $endDate);
 
         $dateKeys = [];
         $labels = [];
@@ -56,6 +46,17 @@ class EntryScansPerLocation extends Component
             $dateKeys[] = $day->format('Y-m-d');
             $labels[] = $day->format('M d');
         }
+
+        $countsByTypeAndDate = $this->aggregatedActivityCounts($startDate, $endDate);
+        $voucherRedemptionCounts = $this->aggregatedVoucherRedemptionCounts($startDate, $endDate);
+
+        $activityTypes = ActivityType::where('is_active', true)
+            ->whereNotIn('name', [
+                PointsService::ACTIVITY_VOUCHER_REDEEM,
+                PointsService::ACTIVITY_ADMIN_VOUCHER_REDEEM,
+            ])
+            ->orderBy('name')
+            ->get(['id', 'name', 'description']);
 
         $datasets = [];
         $colorIndex = 0;
@@ -73,7 +74,7 @@ class EntryScansPerLocation extends Component
 
             $color = self::CHART_COLORS[$colorIndex % count(self::CHART_COLORS)];
             $datasets[] = [
-                'label' => $activityType->name,
+                'label' => $activityType->description ?: $activityType->name,
                 'data' => $data,
                 'borderColor' => $color['border'],
                 'backgroundColor' => $color['bg'],
@@ -81,6 +82,30 @@ class EntryScansPerLocation extends Component
                 'fill' => false,
             ];
             $colorIndex++;
+        }
+
+        $voucherData = array_map(
+            fn (string $date) => (int) ($voucherRedemptionCounts[$date] ?? 0),
+            $dateKeys
+        );
+
+        if (array_sum($voucherData) > 0) {
+            $color = self::CHART_COLORS[$colorIndex % count(self::CHART_COLORS)];
+            $datasets[] = [
+                'label' => self::VOUCHER_REDEMPTION_LABEL,
+                'data' => $voucherData,
+                'borderColor' => $color['border'],
+                'backgroundColor' => $color['bg'],
+                'tension' => 0.4,
+                'fill' => false,
+            ];
+        }
+
+        if ($datasets === []) {
+            return [
+                'labels' => [],
+                'datasets' => [],
+            ];
         }
 
         return [
@@ -140,6 +165,41 @@ class EntryScansPerLocation extends Component
             $typeId = (int) $row->activity_type_id;
             $date = (string) $row->date;
             $result[$typeId][$date] = (int) $row->count;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Daily merchant + admin voucher redemptions. Pivot tables remain the source of
+     * truth so the dedicated "Voucher redemption" series is not double-counted when
+     * redeem flows also write member_activities rows.
+     *
+     * @return array<string, int>
+     */
+    protected function aggregatedVoucherRedemptionCounts($startDate, $endDate): array
+    {
+        $merchantCounts = DB::table('user_voucher')
+            ->where('status', 'redeemed')
+            ->whereNotNull('redeemed_at')
+            ->whereBetween('redeemed_at', [$startDate, $endDate])
+            ->selectRaw('DATE(redeemed_at) as date, COUNT(*) as count')
+            ->groupBy(DB::raw('DATE(redeemed_at)'))
+            ->get();
+
+        $adminCounts = DB::table('user_admin_voucher')
+            ->where('status', 'redeemed')
+            ->whereNotNull('redeemed_at')
+            ->whereBetween('redeemed_at', [$startDate, $endDate])
+            ->selectRaw('DATE(redeemed_at) as date, COUNT(*) as count')
+            ->groupBy(DB::raw('DATE(redeemed_at)'))
+            ->get();
+
+        $result = [];
+
+        foreach ($merchantCounts->concat($adminCounts) as $row) {
+            $date = (string) $row->date;
+            $result[$date] = ($result[$date] ?? 0) + (int) $row->count;
         }
 
         return $result;

@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -49,11 +48,40 @@ class Merchant extends Model implements HasMedia
             ->withTimestamps();
     }
 
+    public function ledgerEntries(): HasMany
+    {
+        return $this->hasMany(AdminVoucherLedgerEntry::class);
+    }
+
+    public function adminVoucherInvoices(): HasMany
+    {
+        return $this->hasMany(MerchantAdminVoucherInvoice::class);
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'merchant_user')
             ->withPivot('is_default')
             ->withTimestamps();
+    }
+
+    /**
+     * Totals for Hope Village reimbursements on admin vouchers assigned to this store.
+     *
+     * @return array{reimbursed: float, receivables: float}
+     */
+    public function adminVoucherReimbursementTotals(): array
+    {
+        $entries = $this->ledgerEntries()
+            ->whereIn('admin_voucher_id', $this->adminVouchers()->select('admin_vouchers.id'))
+            ->with('adminVoucher')
+            ->withSum('reimbursements', 'amount')
+            ->get();
+
+        return [
+            'reimbursed' => round((float) $entries->sum(fn (AdminVoucherLedgerEntry $entry) => (float) ($entry->reimbursements_sum_amount ?? 0)), 2),
+            'receivables' => round((float) $entries->sum(fn (AdminVoucherLedgerEntry $entry) => $entry->computedTotalDispensed()), 2),
+        ];
     }
 
     /**
@@ -72,6 +100,7 @@ class Merchant extends Model implements HasMedia
     public function getLogoUrlAttribute(): ?string
     {
         $media = $this->getFirstMedia('logo');
+
         return $media ? $media->getUrl() : null;
     }
 
@@ -91,13 +120,11 @@ class Merchant extends Model implements HasMedia
 
     /**
      * Generate a unique merchant code.
-     *
-     * @return string
      */
     protected static function generateUniqueMerchantCode(): string
     {
         do {
-            $code = 'MER-' . strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
+            $code = 'MER-'.strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
         } while (static::where('merchant_code', $code)->exists());
 
         return $code;

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Fortify;
+use RuntimeException;
 
 class AuthenticateUser
 {
@@ -18,10 +19,10 @@ class AuthenticateUser
         // Normalize input: remove spaces, dashes, etc., but keep + and digits
         $normalized = preg_replace('/[^\d+]/', '', $input);
         $digitsOnly = preg_replace('/\D+/', '', $input);
-        
+
         // Get default country code from config (default to +65 for Singapore)
         $defaultCountryCode = config('services.twilio.default_country_code', '65');
-        
+
         // Build search variations
         $variations = [
             // Exact matches first
@@ -29,36 +30,36 @@ class AuthenticateUser
             $normalized,               // Normalized (keeps +)
             $digitsOnly,               // Digits only
         ];
-        
+
         // Add + prefix variation if not already present
-        if (!str_starts_with($normalized, '+')) {
-            $variations[] = '+' . $digitsOnly;
+        if (! str_starts_with($normalized, '+')) {
+            $variations[] = '+'.$digitsOnly;
         }
-        
+
         // Without + prefix variation
         $withoutPlus = str_replace('+', '', $normalized);
         if ($withoutPlus !== $normalized) {
             $variations[] = $withoutPlus;
         }
-        
+
         // If input doesn't start with +, try adding default country code
-        if (!str_starts_with($normalized, '+') && $defaultCountryCode) {
-            $variations[] = '+' . $defaultCountryCode . $digitsOnly;  // +65 + digits
-            $variations[] = $defaultCountryCode . $digitsOnly;        // 65 + digits
+        if (! str_starts_with($normalized, '+') && $defaultCountryCode) {
+            $variations[] = '+'.$defaultCountryCode.$digitsOnly;  // +65 + digits
+            $variations[] = $defaultCountryCode.$digitsOnly;        // 65 + digits
         }
-        
+
         // If input appears to start with country code (without +), extract local number
         if ($defaultCountryCode && strlen($digitsOnly) > strlen($defaultCountryCode)) {
             if (str_starts_with($digitsOnly, $defaultCountryCode)) {
                 $localNumber = substr($digitsOnly, strlen($defaultCountryCode));
-                $variations[] = '+' . $defaultCountryCode . $localNumber;  // +65 + local
+                $variations[] = '+'.$defaultCountryCode.$localNumber;  // +65 + local
                 $variations[] = $localNumber;  // Just local number
             }
         }
-        
+
         // Remove duplicates and empty values
         $variations = array_unique(array_filter($variations));
-        
+
         // Try each variation
         foreach ($variations as $variation) {
             $user = User::where('whatsapp_number', $variation)->first();
@@ -66,7 +67,7 @@ class AuthenticateUser
                 return $user;
             }
         }
-        
+
         // Last attempt: try matching by last 8 digits (Singapore local number length)
         // This handles cases where user enters just the local number part
         if (strlen($digitsOnly) >= 8) {
@@ -75,14 +76,15 @@ class AuthenticateUser
                 ->get()
                 ->filter(function ($u) use ($lastDigits) {
                     $storedDigits = preg_replace('/\D+/', '', $u->whatsapp_number);
+
                     return str_ends_with($storedDigits, $lastDigits);
                 });
-            
+
             if ($users->count() === 1) {
                 return $users->first();
             }
         }
-        
+
         return null;
     }
 
@@ -90,8 +92,6 @@ class AuthenticateUser
      * Handle the incoming request.
      * Fortify expects this to return a User or throw ValidationException.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \App\Models\User
      * @throws \Illuminate\Validation\ValidationException
      */
     public function __invoke(Request $request): User
@@ -107,7 +107,7 @@ class AuthenticateUser
 
         // Determine if the input is an email or WhatsApp number
         $isEmail = filter_var($username, FILTER_VALIDATE_EMAIL);
-        
+
         // Find user by email or WhatsApp number
         $user = null;
         if ($isEmail) {
@@ -119,7 +119,7 @@ class AuthenticateUser
         }
 
         // If user not found or password doesn't match
-        if (!$user || !Hash::check($password, $user->password)) {
+        if (! $user || ! $this->passwordMatches($user, $password)) {
             throw ValidationException::withMessages([
                 Fortify::username() => [__('The provided credentials are incorrect.')],
             ]);
@@ -131,5 +131,42 @@ class AuthenticateUser
 
         return $user;
     }
-}
 
+    /**
+     * Verify the password without crashing when a stored hash is not bcrypt.
+     */
+    protected function passwordMatches(User $user, mixed $password): bool
+    {
+        if (! is_string($password) || $password === '') {
+            return false;
+        }
+
+        $hash = $user->getRawOriginal('password');
+
+        if (! is_string($hash) || $hash === '') {
+            return false;
+        }
+
+        try {
+            $matches = Hash::check($password, $hash);
+        } catch (RuntimeException) {
+            $matches = password_verify($password, $hash);
+        }
+
+        if ($matches) {
+            try {
+                $needsRehash = Hash::needsRehash($hash);
+            } catch (RuntimeException) {
+                $needsRehash = true;
+            }
+
+            if ($needsRehash) {
+                $user->forceFill([
+                    'password' => $password,
+                ])->save();
+            }
+        }
+
+        return $matches;
+    }
+}

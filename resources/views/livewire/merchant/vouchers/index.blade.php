@@ -112,13 +112,14 @@
                                     $wrapperClass = match ($statusCategory) {
                                         'active' => '',
                                         'pending_approval' => 'ring-1 ring-yellow-300/80 rounded-lg',
-                                        'inactive', 'expired' => 'opacity-90 grayscale rounded-lg',
+                                        'not_yet_valid' => 'ring-1 ring-sky-300/80 rounded-lg',
+                                        'expired' => 'opacity-90 grayscale rounded-lg',
                                         default => '',
                                     };
                                 @endphp
                                 <div class="shrink-0 w-full relative {{ $wrapperClass }}">
                                     <livewire:merchant.vouchers.card :voucher-code="$voucher->voucher_code" :key="'voucher-' . $voucher->id" />
-                                    @if(in_array($statusCategory, ['inactive', 'expired'], true))
+                                    @if($statusCategory === 'expired')
                                         <div class="absolute inset-0 bg-black/10 rounded-lg z-10 pointer-events-none" aria-hidden="true"></div>
                                     @endif
                                 </div>

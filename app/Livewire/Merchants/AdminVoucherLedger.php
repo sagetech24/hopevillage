@@ -4,6 +4,7 @@ namespace App\Livewire\Merchants;
 
 use App\Models\AdminVoucherLedgerEntry;
 use App\Models\AdminVoucherReimbursement;
+use App\Models\MerchantAdminVoucherInvoice;
 use App\Services\AdminVoucherLedgerSyncService;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -136,7 +137,8 @@ class AdminVoucherLedger extends Component
         $amount = (float) $this->reimbAmount;
 
         if ($amount > $outstanding) {
-            $this->addError('reimbAmount', 'Amount cannot exceed outstanding balance ($' . number_format($outstanding, 2) . ').');
+            $this->addError('reimbAmount', 'Amount cannot exceed outstanding balance ($'.number_format($outstanding, 2).').');
+
             return;
         }
 
@@ -188,17 +190,17 @@ class AdminVoucherLedger extends Component
             $query->where('period_month', '>=', now()->subMonths(12)->startOfMonth());
         } elseif ($this->dateFilter === 'custom' && ($this->monthFrom || $this->monthTo)) {
             if ($this->monthFrom) {
-                $query->where('period_month', '>=', $this->monthFrom . '-01');
+                $query->where('period_month', '>=', $this->monthFrom.'-01');
             }
             if ($this->monthTo) {
-                $query->where('period_month', '<=', $this->monthTo . '-01');
+                $query->where('period_month', '<=', $this->monthTo.'-01');
             }
         }
 
         if ($this->merchantSearch !== '') {
             $query->whereHas('merchant', function ($q) {
-                $q->where('name', 'like', '%' . $this->merchantSearch . '%')
-                    ->orWhere('merchant_code', 'like', '%' . $this->merchantSearch . '%');
+                $q->where('name', 'like', '%'.$this->merchantSearch.'%')
+                    ->orWhere('merchant_code', 'like', '%'.$this->merchantSearch.'%');
             });
         }
 
@@ -212,10 +214,34 @@ class AdminVoucherLedger extends Component
             ->orderBy('admin_voucher_ledger_entries.id')
             ->paginate(15);
 
+        $invoices = MerchantAdminVoucherInvoice::query()
+            ->with(['merchant', 'generatedBy'])
+            ->when($this->merchantSearch !== '', function ($invoiceQuery) {
+                $invoiceQuery->whereHas('merchant', function ($merchantQuery) {
+                    $merchantQuery->where('name', 'like', '%'.$this->merchantSearch.'%')
+                        ->orWhere('merchant_code', 'like', '%'.$this->merchantSearch.'%');
+                });
+            })
+            ->orderByDesc('generated_at')
+            ->limit(25)
+            ->get();
+
+        $invoiceLookup = MerchantAdminVoucherInvoice::query()
+            ->when($entries->isNotEmpty(), function ($invoiceQuery) use ($entries) {
+                $invoiceQuery->whereIn('merchant_id', $entries->pluck('merchant_id')->unique())
+                    ->whereIn('admin_voucher_id', $entries->pluck('admin_voucher_id')->unique());
+            }, function ($invoiceQuery) {
+                $invoiceQuery->whereRaw('0 = 1');
+            })
+            ->get()
+            ->keyBy(fn (MerchantAdminVoucherInvoice $invoice) => MerchantAdminVoucherInvoice::pairKey($invoice->merchant_id, $invoice->admin_voucher_id));
+
         return view('livewire.merchants.admin-voucher-ledger', [
             'entries' => $entries,
             'selectedLedgerEntry' => $this->selectedLedgerEntry,
             'historyLedgerEntry' => $this->historyLedgerEntry,
+            'invoices' => $invoices,
+            'invoiceLookup' => $invoiceLookup,
         ]);
     }
 }

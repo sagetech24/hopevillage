@@ -70,7 +70,13 @@
                                     <div>
                                         <label class="text-sm font-medium text-gray-500">Discount Value</label>
                                         <p class="text-gray-900 font-semibold text-lg">
-                                            {{ $voucher->discount_type === 'percentage' ? $voucher->discount_value . '%' : '$' . number_format($voucher->discount_value, 2) }}
+                                            @if($voucher->discount_type === 'percentage')
+                                                {{ $voucher->discount_value }}%
+                                            @elseif($voucher->discount_type === 'item')
+                                                Free Item
+                                            @else
+                                                ${{ number_format($voucher->discount_value, 2) }}
+                                            @endif
                                         </p>
                                     </div>
                                 </div>

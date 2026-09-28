@@ -1,7 +1,7 @@
 <div>
     @can('member.view')
     <x-slot name="header">
-        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-6xl mx-auto sm:px-6 lg:px-8">
             <div class="flex justify-between items-center">
                 <h2 class="font-semibold md:text-xl text-2xl text-gray-800 leading-tight">
                     {{ __('Members') }}
@@ -17,7 +17,7 @@
         </div>
     </x-slot>
     <div class="py-12">
-        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-6xl mx-auto sm:px-6 lg:px-8">
             @if (session()->has('message') || session()->has('error'))
                 <div 
                     x-data="{ 
@@ -210,13 +210,26 @@
             @if(!$showPasswordReset)
                 <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6 md:mx-0 mx-4 mb-6">
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                        <div class="lg:col-span-4">
+                        <div class="lg:col-span-4 relative">
                             <input
                                 type="text"
                                 wire:model.live.debounce.300ms="search"
                                 placeholder="Search members (name, email, FIN, WhatsApp)..."
-                                class="w-full px-4 py-2 border text-gray-700 border-gray-500 rounded-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                class="w-full px-4 py-2 {{ $search !== '' ? 'pr-10' : '' }} border text-gray-700 border-gray-500 rounded-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                             >
+                            @if($search !== '')
+                                <button
+                                    type="button"
+                                    wire:click="$set('search', '')"
+                                    class="absolute inset-y-0 right-2 flex items-center px-2 text-gray-400 hover:text-gray-700"
+                                    aria-label="Clear search"
+                                    title="Clear search"
+                                >
+                                    <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            @endif
                         </div>
                         <div class="lg:col-span-2">
                             <select
@@ -250,7 +263,23 @@
                                 <option value="lowest">Sort by Points: Lowest to highest</option>
                                 <option value="top_20">Sort by Points: Top 20</option>
                                 <option value="top_50">Sort by Points: Top 50</option>
+                                <option value="active_30d">Top 30-day active members</option>
+                                <option value="active_90d">Top 90-day active members</option>
                             </select>
+                            @if($this->hasUrlFilterValues())
+                                <button
+                                    type="button"
+                                    wire:click="clearFilters"
+                                    class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 border border-gray-400 text-gray-700 hover:bg-gray-100 text-sm font-medium rounded-full transition-colors whitespace-nowrap"
+                                    aria-label="Clear filters"
+                                    title="Clear filters"
+                                >
+                                    <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                    </svg>
+                                    Clear
+                                </button>
+                            @endif
                             @can('can_export_data')
                                 <button
                                     type="button"
@@ -265,6 +294,11 @@
                             @endcan
                         </div>
                     </div>
+                    @if($this->activeMembersPeriodDays())
+                        <p class="mt-3 text-sm text-gray-500">
+                            Showing members with activity in the last {{ $this->activeMembersPeriodDays() }} days, ranked by activity count. Export uses this same list.
+                        </p>
+                    @endif
                 </div>
             @endif
 
@@ -277,7 +311,29 @@
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Member</th>
                                     {{-- <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">FIN</th> --}}
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type of work</th>
-                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Points</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                        <button 
+                                            wire:click="sortByPoints" 
+                                            class="flex items-center cursor-pointer gap-1 hover:text-gray-700 transition-colors"
+                                            title="Sort by Points"
+                                        >
+                                            <span>Points</span>
+                                            @if($pointsSort === 'lowest')
+                                                <svg class="w-4 h-4 hover:scale-110 transition-all duration-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
+                                                </svg>
+                                            @else
+                                                <svg class="w-4 h-4 hover:scale-110 transition-all duration-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3" />
+                                                </svg>
+                                            @endif
+                                        </button>
+                                    </th>
+                                    @if($this->activeMembersPeriodDays())
+                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Activities ({{ $this->activeMembersPeriodDays() }}d)
+                                        </th>
+                                    @endif
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                         <button 
                                             wire:click="sortByDate" 
@@ -303,7 +359,17 @@
                                 @forelse($members as $member)
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-6 py-4">
-                                            <div class="font-semibold text-gray-900 text-lg">{{ $member->name }}</div>
+                                            <div class="font-semibold text-gray-900 text-lg">
+                                                @can('member.profile')
+                                                    @if($member->qr_code)
+                                                        <a href="{{ route('admin.members.profile', $member->qr_code) }}" class="hover:text-orange-600 hover:underline transition-all duration-300 cursor-pointer text-orange-500">{{ $member->name }}</a>
+                                                    @else
+                                                        {{ $member->name }}
+                                                    @endif
+                                                @else
+                                                    {{ $member->name }}
+                                                @endcan
+                                            </div>
                                             <div class="text-xs text-gray-500 flex gap-1">
                                                 <svg class="size-3" fill="#000000" viewBox="0 0 24 24" id="email" data-name="Flat Line" xmlns="http://www.w3.org/2000/svg" class="icon flat-line">
                                                     <g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path id="secondary" d="M20.61,5.23l-8,6.28a1,1,0,0,1-1.24,0l-8-6.28A1,1,0,0,0,3,6V18a1,1,0,0,0,1,1H20a1,1,0,0,0,1-1V6A1,1,0,0,0,20.61,5.23Z" style="fill: #2ca9bc; stroke-width: 2;"></path><path id="primary" d="M20,19H4a1,1,0,0,1-1-1V6A1,1,0,0,1,4,5H20a1,1,0,0,1,1,1V18A1,1,0,0,1,20,19ZM20,5H4a1,1,0,0,0-.62.22l8,6.29a1,1,0,0,0,1.24,0l8-6.29A1,1,0,0,0,20,5Z" style="fill: none; stroke: #000000; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2;"></path></g>
@@ -340,6 +406,9 @@
                                             @endif
                                         </td>
                                         <td class="px-6 py-4 text-sm font-semibold text-gray-800">{{ $member->total_points }}</td>
+                                        @if($this->activeMembersPeriodDays())
+                                            <td class="px-6 py-4 text-sm font-semibold text-gray-800">{{ $member->period_activity_count ?? 0 }}</td>
+                                        @endif
                                         <td class="px-6 py-4 text-sm text-gray-700">
                                             <div class="flex flex-col text-xs text-gray-600">
                                                 <span class="text-xs text-gray-500">
@@ -462,8 +531,12 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="px-6 py-10 text-center text-sm text-gray-500">
-                                            {{ $userTypeFilter === 'merchant_user' ? 'No merchant users found.' : 'No members found.' }}
+                                        <td colspan="{{ $this->activeMembersPeriodDays() ? 6 : 5 }}" class="px-6 py-10 text-center text-sm text-gray-500">
+                                            @if($this->activeMembersPeriodDays())
+                                                No members with activity in the last {{ $this->activeMembersPeriodDays() }} days.
+                                            @else
+                                                {{ $userTypeFilter === 'merchant_user' ? 'No merchant users found.' : 'No members found.' }}
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforelse

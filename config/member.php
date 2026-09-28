@@ -15,7 +15,6 @@ return [
     'type_of_work_options' => [
         'Migrant worker',
         'Migrant domestic worker',
-        'Others',
     ],
 
 ];

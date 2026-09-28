@@ -4,7 +4,7 @@
     $statusClass = match ($statusCategory) {
         'active' => 'bg-green-100 text-green-800',
         'pending_approval' => 'bg-yellow-100 text-yellow-800',
-        'inactive' => 'bg-gray-100 text-gray-800',
+        'not_yet_valid' => 'bg-sky-100 text-sky-800',
         'expired' => 'bg-red-100 text-red-800',
         default => 'bg-gray-100 text-gray-800',
     };

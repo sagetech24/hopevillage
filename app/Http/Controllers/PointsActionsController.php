@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AdminVoucher;
 use App\Models\ActivityType;
+use App\Models\AdminVoucher;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Location;
@@ -33,7 +33,7 @@ class PointsActionsController extends Controller
         DB::transaction(function () use ($user, $location) {
             $activityType = ActivityType::where('name', PointsService::ACTIVITY_LOCATION_ENTRY)->first();
             if (! $activityType) {
-                throw new \Exception('Activity type "' . PointsService::ACTIVITY_LOCATION_ENTRY . '" does not exist.');
+                throw new \Exception('Activity type "'.PointsService::ACTIVITY_LOCATION_ENTRY.'" does not exist.');
             }
 
             $memberActivity = $user->memberActivities()->create([
@@ -126,7 +126,7 @@ class PointsActionsController extends Controller
             ->where('vouchers.id', $voucher->id)
             ->first();
 
-        if (!$pivot) {
+        if (! $pivot) {
             return response()->json([
                 'ok' => false,
                 'message' => 'Voucher not claimed by this member.',
@@ -141,9 +141,10 @@ class PointsActionsController extends Controller
             ]);
         }
 
-        // Block expired, not-yet-valid, or usage-exceeded vouchers - no redemption or points
-        if (!$voucher->isValid()) {
-            $reason = $voucher->getStatusReason();
+        // Block inactive / out-of-date vouchers - no redemption or points (usage limit is claim-only)
+        if (! $voucher->isRedeemable()) {
+            $reason = $voucher->getRedeemStatusReason();
+
             return response()->json([
                 'ok' => false,
                 'message' => $reason ? "Voucher cannot be redeemed: {$reason}." : 'Voucher is not valid.',
@@ -186,7 +187,7 @@ class PointsActionsController extends Controller
             ->where('admin_vouchers.id', $adminVoucher->id)
             ->first();
 
-        if (!$pivot) {
+        if (! $pivot) {
             return response()->json([
                 'ok' => false,
                 'message' => 'Admin voucher not claimed by this member.',
@@ -201,9 +202,10 @@ class PointsActionsController extends Controller
             ]);
         }
 
-        // Block expired, not-yet-valid, or usage-exceeded admin vouchers - no redemption
-        if (!$adminVoucher->isValid()) {
-            $reason = $adminVoucher->getStatusReason();
+        // Block inactive / out-of-date admin vouchers - no redemption (usage limit is claim-only)
+        if (! $adminVoucher->isRedeemable()) {
+            $reason = $adminVoucher->getRedeemStatusReason();
+
             return response()->json([
                 'ok' => false,
                 'message' => $reason ? "Voucher cannot be redeemed: {$reason}." : 'Admin voucher is not valid.',
@@ -217,6 +219,8 @@ class PointsActionsController extends Controller
                 'redeemed_at' => now(),
             ]);
 
+            app(PointsService::class)->recordAdminVoucherRedeem($user, $adminVoucher);
+
             // Note: usage_count is only incremented on claim, not redemption
             // Note: No points are awarded for admin voucher redemption
             // Points were already deducted when the voucher was claimed
@@ -228,5 +232,3 @@ class PointsActionsController extends Controller
         ]);
     }
 }
-
-

@@ -13,14 +13,14 @@ class RegisterResponse implements RegisterResponseContract
 
         // Auto-login after registration - skip verification for now
         // Verification will be handled later in the dashboard
-        
+
         // Redirect based on user type
         if ($user->isAdmin()) {
             return redirect()->route('admin.dashboard');
         } elseif ($user->isMember()) {
             return redirect()->route('member.events');
         } elseif ($user->isMerchantUser()) {
-            return redirect()->route('merchant.dashboard');
+            return redirect()->route('merchant.dashboard.v2');
         }
 
         return redirect()->route('dashboard');

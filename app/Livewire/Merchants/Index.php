@@ -24,6 +24,8 @@ class Index extends Component
 
     protected $queryString = [
         'activeTab' => ['as' => 'tab', 'except' => 'merchants'],
+        'statusFilter' => ['except' => 'all'],
+        'search' => ['except' => ''],
     ];
 
     public function mount()
@@ -34,6 +36,11 @@ class Index extends Component
         $tab = request()->query('tab');
         if (in_array($tab, ['merchant-ledger', 'merchants'], true)) {
             $this->activeTab = $tab;
+        }
+
+        $statusFilter = request()->query('statusFilter');
+        if (in_array($statusFilter, ['all', 'active', 'inactive', 'pending'], true)) {
+            $this->statusFilter = $statusFilter;
         }
     }
 

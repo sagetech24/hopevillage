@@ -52,6 +52,8 @@
                                 <div class="flex items-center justify-between text-xs text-orange-600 font-semibold mb-2">
                                     @if($voucher->discount_type === 'percentage')
                                         {{ $voucher->discount_value }}% OFF
+                                    @elseif($voucher->discount_type === 'item')
+                                        Free Item
                                     @else
                                         ${{ number_format($voucher->discount_value, 2) }} OFF
                                     @endif

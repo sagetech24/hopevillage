@@ -47,6 +47,8 @@
                 <p class="text-xs text-gray-700 mt-1">Exchange {{ number_format($item->points_cost ?? 0) }} points</p>
             @elseif($item->discount_type === 'percentage')
                 <p class="text-xs text-gray-700 mt-1">{{ rtrim(rtrim((string) $item->discount_value, '0'), '.') }}% off</p>
+            @elseif($item->discount_type === 'item')
+                <p class="text-xs text-gray-700 mt-1">Free Item</p>
             @else
                 <p class="text-xs text-gray-700 mt-1">${{ number_format((float) $item->discount_value, 2) }} off</p>
             @endif

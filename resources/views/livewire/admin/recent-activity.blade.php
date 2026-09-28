@@ -21,7 +21,7 @@
                         <p class="text-sm text-gray-800 font-bold">{{ $activity->user->name ?? 'Unknown' }}</p>
                         <p class="text-xs text-gray-600">{{ $activity->activityType->name ?? 'Activity' }}</p>
                         <p class="text-xs text-gray-600 mt-1">
-                            {{ $activity->location->name ?? 'N/A' }} 
+                            {{ $activity->location?->name ?? 'N/A' }} 
                         </p>
                         <p class="text-gray-500 italic text-xs">{{ $activity->activity_time->diffForHumans() }}</p>
                     </div>

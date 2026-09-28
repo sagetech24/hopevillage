@@ -10,7 +10,7 @@
         } elseif ($user->isMember()) {
             $dashboardRoute = 'member.dashboard';
         } elseif ($user->isMerchantUser()) {
-            $dashboardRoute = 'merchant.dashboard';
+            $dashboardRoute = 'merchant.dashboard.v2';
         }
     } else {
         $dashboardRoute = 'login';

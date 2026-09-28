@@ -12,7 +12,6 @@
                     wire:model.live="selectedLocationId"
                     class="select w-full text-gray-800 focus:outline-none rounded-full bg-white border-gray-300 focus:ring-0 focus:ring-gray-500 focus:border-gray-500"
                 >
-                <option value="">Select Location</option>
                 @foreach($activeLocations as $location)
                     <option value="{{ $location->id }}">{{ $location->name }}</option>
                 @endforeach
@@ -20,11 +19,11 @@
             </div>
         </div>
         <div class="relative h-[450px] mt-4">
-        @if(empty($recentEvents['labels']))
-            <div class="flex items-center justify-center h-full">
-                <p class="text-gray-500 text-center">No finished events found for this location.</p>
-            </div>
-        @else
+            @if(empty($recentEvents['labels']))
+                <div class="flex items-center justify-center h-full">
+                    <p class="text-gray-500 text-center">No finished events found for this location.</p>
+                </div>
+            @else
             <canvas 
                 wire:key="recent-events-chart-{{ $selectedLocationId }}"
                 x-data="{

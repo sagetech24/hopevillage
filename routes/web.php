@@ -130,6 +130,9 @@ Route::middleware([
     Route::get('/admin/admin-voucher-ledger/{entry}/transaction-history-pdf', \App\Http\Controllers\AdminVoucherLedgerTransactionHistoryPdfController::class)
         ->name('admin.admin-voucher-ledger.transaction-history-pdf');
 
+    Route::get('/admin/merchant-invoices/{invoice}/pdf', \App\Http\Controllers\MerchantAdminVoucherInvoicePdfController::class)
+        ->name('admin.merchant-admin-voucher-invoices.pdf');
+
     // Point System CRUD Routes
     Route::get('/admin/point-system', \App\Livewire\PointSystem\Index::class)->name('admin.point-system.index');
     Route::get('/admin/point-system/create', \App\Livewire\PointSystem\Form::class)->name('admin.point-system.create');
@@ -258,16 +261,25 @@ Route::middleware([
     'merchant_user',
 ])->group(function () {
     Route::get('/merchant/dashboard', function () {
-        return view('merchant.dashboard');
+        return redirect()->route('merchant.dashboard.v2');
     })->name('merchant.dashboard');
+
+    Route::get('/merchant/dashboard-v2', function () {
+        return view('merchant.dashboard-v2');
+    })->name('merchant.dashboard.v2');
 
     // Merchant Voucher CRUD Routes
     Route::get('/merchant/vouchers', \App\Livewire\Merchant\Vouchers\Index::class)->name('merchant.vouchers.index');
     Route::get('/merchant/vouchers/create', \App\Livewire\Merchant\Vouchers\Form::class)->name('merchant.vouchers.create');
+    Route::get('/merchant/vouchers/admin/{voucher_code}/reimbursements-pdf', \App\Http\Controllers\MerchantAdminVoucherReimbursementPdfController::class)
+        ->name('merchant.vouchers.admin-reimbursements-pdf');
     Route::get('/merchant/vouchers/{voucher_code}/edit', \App\Livewire\Merchant\Vouchers\Form::class)->name('merchant.vouchers.edit');
     Route::get('/merchant/vouchers/{voucher_code}', \App\Livewire\Merchant\Vouchers\Profile::class)->name('merchant.vouchers.profile');
 
     Route::get('/merchant/redemptions', \App\Livewire\Merchant\Redemptions\Index::class)->name('merchant.redemptions.index');
+    Route::get('/merchant/reimbursements', \App\Livewire\Merchant\Reimbursements\Index::class)->name('merchant.reimbursements.index');
+    Route::get('/merchant/invoices/{invoice}/pdf', \App\Http\Controllers\MerchantAdminVoucherInvoicePdfController::class)
+        ->name('merchant.admin-voucher-invoices.pdf');
 
     // Points actions (merchant-operated)
     Route::post('/merchant/points/voucher-redeem', [PointsActionsController::class, 'redeemVoucher'])->name('merchant.points.voucher-redeem');
@@ -286,7 +298,7 @@ Route::middleware([
         } elseif ($user->isMember()) {
             return redirect()->route('member.dashboard');
         } elseif ($user->isMerchantUser()) {
-            return redirect()->route('merchant.dashboard');
+            return redirect()->route('merchant.dashboard.v2');
         }
         abort(403, 'Invalid user type');
     })->name('dashboard');

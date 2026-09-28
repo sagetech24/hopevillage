@@ -3,7 +3,6 @@
 namespace App\Http\Responses;
 
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 
 class LoginResponse implements LoginResponseContract
@@ -17,10 +16,10 @@ class LoginResponse implements LoginResponseContract
     public function toResponse($request): RedirectResponse
     {
         $user = $request->user();
-        
+
         // Skip verification redirect - allow unverified users to access dashboard
         // Verification will be handled later in the dashboard
-        
+
         // if ($user && $user->isMember() && !$user->is_verified) {
         //     return redirect()->route('verification.code.show');
         // }
@@ -30,10 +29,9 @@ class LoginResponse implements LoginResponseContract
         } elseif ($user->isMember()) {
             return redirect()->route('member.dashboard');
         } elseif ($user->isMerchantUser()) {
-            return redirect()->route('merchant.dashboard');
+            return redirect()->route('merchant.dashboard.v2');
         }
-        
+
         return redirect()->route('dashboard');
     }
 }
-

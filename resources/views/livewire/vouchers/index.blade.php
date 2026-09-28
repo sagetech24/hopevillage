@@ -106,11 +106,18 @@
                 @endif
 
                 @php
-                    $totalCount = ($statusCounts['pending'] ?? 0) + ($statusCounts['active'] ?? 0) + ($statusCounts['expired'] ?? 0);
+                    $totalCount = ($statusCounts['pending'] ?? 0)
+                        + ($statusCounts['active'] ?? 0)
+                        + ($statusCounts['not_yet_valid'] ?? 0)
+                        + ($statusCounts['expired'] ?? 0);
+                    $displayedGroups = $tab === 'merchant'
+                        ? ($groupedVouchers ?? collect())
+                        : ($groupedAdminVouchers ?? collect());
+                    $displayedCount = collect($displayedGroups)->sum(fn ($group) => $group->count());
                 @endphp
 
                 <!-- Summary stats -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:px-0 px-4 mb-6">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:px-0 px-4 mb-6">
                     <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                         <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total</p>
                         <p class="mt-1 text-2xl font-bold text-gray-900">{{ number_format($totalCount) }}</p>
@@ -122,6 +129,10 @@
                     <div class="bg-white rounded-xl border border-amber-200 p-4 shadow-sm">
                         <p class="text-xs font-medium text-amber-700 uppercase tracking-wide">Pending</p>
                         <p class="mt-1 text-2xl font-bold text-amber-700">{{ number_format($statusCounts['pending'] ?? 0) }}</p>
+                    </div>
+                    <div class="bg-white rounded-xl border border-sky-200 p-4 shadow-sm">
+                        <p class="text-xs font-medium text-sky-700 uppercase tracking-wide">Not Yet Valid</p>
+                        <p class="mt-1 text-2xl font-bold text-sky-700">{{ number_format($statusCounts['not_yet_valid'] ?? 0) }}</p>
                     </div>
                     <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                         <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Expired</p>
@@ -152,10 +163,13 @@
                                 @if($tab === 'merchant')
                                     <option value="pending">Pending Approval @if(($pendingCount ?? 0) > 0)({{ $pendingCount }})@endif</option>
                                     <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
+                                    <option value="not_yet_valid">Not Yet Valid</option>
+                                    <option value="expired">Expired</option>
                                 @else
                                     <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="not_yet_valid">Not Yet Valid</option>
+                                    <option value="expired">Expired</option>
                                 @endif
                             </select>
                             @if($tab === 'merchant')
@@ -205,9 +219,15 @@
                                 ],
                                 'pending' => [
                                     'label' => 'Pending For Approval',
-                                    'description' => 'Within validity period but awaiting administrator approval',
+                                    'description' => 'Awaiting administrator approval and not yet expired',
                                     'badge' => 'bg-amber-100 text-amber-800 border-amber-200',
                                     'vouchers' => $groupedVouchers['pending'] ?? collect(),
+                                ],
+                                'not_yet_valid' => [
+                                    'label' => 'Not Yet Valid',
+                                    'description' => 'Approved, but the start date has not been reached',
+                                    'badge' => 'bg-sky-100 text-sky-800 border-sky-200',
+                                    'vouchers' => $groupedVouchers['not_yet_valid'] ?? collect(),
                                 ],
                                 'expired' => [
                                     'label' => 'Expired',
@@ -244,7 +264,7 @@
                             @endif
                         @endforeach
 
-                        @if($totalCount === 0)
+                        @if($displayedCount === 0)
                             <div class="col-span-full flex flex-col items-center justify-center gap-2 text-center py-16 border-dashed border-2 border-gray-200 rounded-xl bg-white text-gray-400">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-10">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m-8.25 3.75h16.5m-16.5 3.75h16.5" />
@@ -264,9 +284,15 @@
                                 ],
                                 'pending' => [
                                     'label' => 'Pending',
-                                    'description' => 'Within validity period but not yet activated',
+                                    'description' => 'Not yet activated and not expired',
                                     'badge' => 'bg-amber-100 text-amber-800 border-amber-200',
                                     'vouchers' => $groupedAdminVouchers['pending'] ?? collect(),
+                                ],
+                                'not_yet_valid' => [
+                                    'label' => 'Not Yet Valid',
+                                    'description' => 'Activated, but the start date has not been reached',
+                                    'badge' => 'bg-sky-100 text-sky-800 border-sky-200',
+                                    'vouchers' => $groupedAdminVouchers['not_yet_valid'] ?? collect(),
                                 ],
                                 'expired' => [
                                     'label' => 'Expired',
@@ -303,7 +329,7 @@
                             @endif
                         @endforeach
 
-                        @if($totalCount === 0)
+                        @if($displayedCount === 0)
                             <div class="col-span-full flex flex-col items-center justify-center gap-2 text-center py-16 border-dashed border-2 border-gray-200 rounded-xl bg-white text-gray-400">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-10">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m-8.25 3.75h16.5m-16.5 3.75h16.5" />

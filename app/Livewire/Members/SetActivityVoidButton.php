@@ -2,11 +2,13 @@
 
 namespace App\Livewire\Members;
 
+use App\Models\AdminVoucher;
 use App\Models\EventRegistration;
 use App\Models\MarketplaceOrder;
 use App\Models\MemberActivity;
 use App\Models\PointLog;
 use App\Models\User;
+use App\Services\AdminVoucherVoidService;
 use App\Services\PointsService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -30,6 +32,10 @@ class SetActivityVoidButton extends Component
         }
 
         if (($this->memberActivity->metadata['status'] ?? null) === 'void') {
+            return;
+        }
+
+        if ($this->memberActivity->activityType?->name === PointsService::ACTIVITY_ADMIN_VOUCHER_VOID) {
             return;
         }
 
@@ -110,19 +116,32 @@ class SetActivityVoidButton extends Component
                 }
             }
 
-            // 4. Claim or redeem admin voucher: remove user from user_admin_voucher
+            // 4. Claim or redeem admin voucher: void the assignment (refund + audit)
             $adminVoucherActivityNames = [
                 PointsService::ACTIVITY_ADMIN_VOUCHER_CLAIM,
+                PointsService::ACTIVITY_ADMIN_VOUCHER_REDEEM,
             ];
             if (in_array($activityTypeName, $adminVoucherActivityNames, true)) {
                 $adminVoucherId = $meta['admin_voucher_id'] ?? null;
                 if ($adminVoucherId) {
-                    $user->adminVouchers()->detach($adminVoucherId);
-                    Log::info('Activity voided: user_admin_voucher pivot removed', [
-                        'member_activity_id' => $this->memberActivity->id,
-                        'user_id' => $user->id,
-                        'admin_voucher_id' => $adminVoucherId,
-                    ]);
+                    $adminVoucher = AdminVoucher::query()->find($adminVoucherId);
+                    if ($adminVoucher) {
+                        try {
+                            app(AdminVoucherVoidService::class)->voidForMember(
+                                $adminVoucher,
+                                $user,
+                                $admin,
+                                'Voided via member activity #'.$this->memberActivity->id.' (trx: '.$randomCode.')',
+                            );
+                        } catch (\Throwable $e) {
+                            Log::info('Activity voided: admin voucher assignment already inactive', [
+                                'member_activity_id' => $this->memberActivity->id,
+                                'user_id' => $user->id,
+                                'admin_voucher_id' => $adminVoucherId,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
                 }
             }
         });

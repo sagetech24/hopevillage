@@ -1,5 +1,6 @@
 @props([
     'entry',
+    'invoice' => null,
 ])
 
 @php
@@ -25,6 +26,9 @@
             <p class="text-sm font-semibold text-gray-900 truncate" title="{{ $merchantName }}">{{ $merchantName }}</p>
             @if ($merchantCode)
                 <p class="mt-0.5 text-[10px] text-gray-500 font-mono truncate">{{ $merchantCode }}</p>
+            @endif
+            @if ($invoice)
+                <p class="mt-0.5 text-[10px] font-semibold text-orange-600 truncate">Invoice {{ $invoice->invoice_number }}</p>
             @endif
         </div>
     </td>

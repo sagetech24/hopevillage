@@ -1,7 +1,7 @@
 <div>
     @can('can_view_activities_of_member')
         <x-slot name="header">
-            <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+            <div class="max-w-6xl mx-auto sm:px-6 lg:px-8">
                 <div class="flex md:flex-row flex-col md:gap-0 gap-4 justify-between items-center">
                     <h2 class="font-semibold md:text-xl text-2xl text-gray-800 leading-tight">
                         {{ __('Member Activities') }}
@@ -16,7 +16,7 @@
         </x-slot>
 
         <div class="py-12">
-            <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+            <div class="max-w-6xl mx-auto sm:px-6 lg:px-8">
 
                 {{-- add the activity chart component --}}
                 <div class="mb-12">
@@ -32,7 +32,7 @@
                                 type="text"
                                 wire:model.live.debounce.300ms="search"
                                 placeholder="Search by member name, email, FIN, or description..."
-                                class="w-full px-4 py-2 text-gray-800 border border-gray-300 rounded-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                class="w-full px-4 py-2 text-gray-800 border border-gray-300 rounded-full focus:ring-0 focus:outline-none focus:border-orange-500"
                             >
                         </div>
                         <div class="relative cols-span-1 lg:col-span-4 grid lg:grid-cols-3 grid-cols-1 gap-4">
@@ -40,7 +40,7 @@
                             <div class="lg:col-span-1">
                                 <select
                                     wire:model.live="activityTypeFilter"
-                                    class="w-full px-4 py-2 text-gray-800 border border-gray-300 rounded-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                    class="w-full px-4 py-2 text-gray-800 border border-gray-300 rounded-full focus:ring-0 focus:ring-orange-500 focus:border-orange-500"
                                 >
                                     <option value="">All Activity Types</option>
                                     @foreach($activityTypes as $type)
@@ -52,7 +52,7 @@
                             <div class="col-span-1 flex flex-col gap-1">
                                 <select
                                     wire:model.live="dateFilter"
-                                    class="w-full px-4 py-2 text-gray-800 border border-gray-300 rounded-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                    class="w-full px-4 py-2 text-gray-800 border border-gray-300 rounded-full focus:ring-0 focus:outline-none focus:border-orange-500"
                                 >
                                     <option value="all">All</option>
                                     <option value="today">Today</option>
@@ -69,7 +69,7 @@
                                                     id="customDateStart"
                                                     type="date"
                                                     wire:model.live="customStartDate"
-                                                    class="w-full px-2 py-1 pr-9 text-gray-800 border border-gray-300 rounded-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                                    class="w-full px-2 py-1 pr-9 text-gray-800 border border-gray-300 rounded-full focus:ring-0 focus:outline-none focus:border-orange-500"
                                                 >
                                                 <button type="button" onclick="(function(){var el=document.getElementById('customDateStart');try{if(el.showPicker)el.showPicker();else el.click();}catch(e){el.focus();el.click();}})()" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none" aria-label="Open calendar">
                                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
@@ -85,7 +85,7 @@
                                                     id="customDateEnd"
                                                     type="date"
                                                     wire:model.live="customEndDate"
-                                                    class="w-full px-2 py-1 pr-9 text-gray-800 border border-gray-300 rounded-full focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                                    class="w-full px-2 py-1 pr-9 text-gray-800 border border-gray-300 rounded-full focus:ring-0 focus:outline-none focus:border-orange-500"
                                                 >
                                                 <button type="button" onclick="(function(){var el=document.getElementById('customDateEnd');try{if(el.showPicker)el.showPicker();else el.click();}catch(e){el.focus();el.click();}})()" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none" aria-label="Open calendar">
                                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
@@ -102,7 +102,7 @@
                                     <button
                                         type="button"
                                         wire:click="exportCsv"
-                                        class="w-full flex gap-2 items-center justify-center py-3 text-xs font-medium text-white bg-orange-500 rounded-full hover:bg-orange-600 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                                        class="w-full flex gap-2 items-center justify-center py-3 text-xs font-medium text-white bg-orange-500 rounded-full hover:bg-orange-600 focus:ring-0 focus:outline-none focus:border-orange-500"
                                     >
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -170,6 +170,10 @@
                                             @if($activity->pointLog?->points > 0)
                                                 <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                                                     {{ '+' . $activity->pointLog?->points }} {{ $activity->pointLog?->points > 1 ? 'Points' : 'Point' }}
+                                                </span>
+                                            @elseif($activity->pointLog?->points < 0)
+                                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                                    {{ $activity->pointLog?->points }} {{ abs((int) $activity->pointLog?->points) > 1 ? 'Points' : 'Point' }}
                                                 </span>
                                             @endif
                                         </td>

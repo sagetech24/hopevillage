@@ -6,21 +6,22 @@
             </svg>
             Voucher Analytics
         </h2>
-        <div class="stats stats-vertical lg:stats-horizontal w-full">
+
+        <div class="w-full grid grid-cols-3 lg:grid-cols-3 gap-2 justify-start">
             <div class="stat">
-                <div class="stat-title text-gray-800">Total Vouchers</div>
-                <div class="stat-value text-gray-800">{{ $voucherStats['total'] }}</div>
-                <div class="stat-desc text-gray-600">All time</div>
+                <div class="stat-title text-gray-800 md:text-base text-xs">{{ __('Vouchers') }}</div>
+                <div class="stat-value text-gray-800 md:text-5xl text-xl">{{ $voucherStats['total'] }}</div>
+                <div class="stat-desc text-gray-600 md:text-base text-xs">{{ __('Active') }}</div>
             </div>
             <div class="stat">
-                <div class="stat-title text-gray-800">Active</div>
-                <div class="stat-value text-gray-800">{{ $voucherStats['active'] }}</div>
-                <div class="stat-desc text-gray-600">Currently available</div>
+                <div class="stat-title text-gray-800 md:text-base text-xs">{{ __('Active') }}</div>
+                <div class="stat-value text-gray-800 md:text-5xl text-xl">{{ $voucherStats['active'] }}</div>
+                <div class="stat-desc text-gray-600 md:text-base text-xs">{{ __('Available') }}</div>
             </div>
             <div class="stat">
-                <div class="stat-title text-gray-800">Redemption Rate</div>
-                <div class="stat-value text-gray-800">{{ $voucherStats['redemptionRate'] }}%</div>
-                <div class="stat-desc text-gray-600">{{ number_format($voucherStats['redeemed']) }} redeemed</div>
+                <div class="stat-title text-gray-800 md:text-base text-xs">{{ __('Redemption Rate') }}</div>
+                <div class="stat-value text-gray-800 md:text-5xl text-xl">{{ $voucherStats['redemptionRate'] }}%</div>
+                <div class="stat-desc text-gray-600 md:text-base text-xs">{{ number_format($voucherStats['redeemed']) }} {{ __('redeemed') }}</div>
             </div>
         </div>
     </div>

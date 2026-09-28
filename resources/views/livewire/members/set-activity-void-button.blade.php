@@ -1,16 +1,16 @@
 <div>
-    @if(($memberActivity->metadata['status'] ?? null) !== 'void')
+    @if(($memberActivity->metadata['status'] ?? null) !== 'void' && $memberActivity->activityType?->name !== \App\Services\PointsService::ACTIVITY_ADMIN_VOUCHER_VOID)
         <button
             title="Set as Void"
             wire:confirm="Are you sure you want to void this activity? Related points will be reversed and linked records updated."
             type="button"
             wire:click="setAsVoid"
-            class="text-xs text-gray-600 hover:text-gray-800 bg-blue-100 hover:bg-blue-300 cursor-pointer border border-gray-300 px-2 py-1 rounded-full transition-colors"
+            class="text-xs text-white bg-orange-500 hover:bg-orange-600 cursor-pointer px-2 py-1 rounded-full transition-colors"
         >
-            Click to Set Void
+            Click to void this activity
         </button>
     @else
-        <span class="text-xs text-gray-600 bg-yellow-100 border border-gray-300 px-2 py-0.5 tracking-wider rounded-full">
+        <span class="text-xs text-white bg-gray-500 px-3 py-1 tracking-wider rounded-full">
             Void
         </span>
     @endif

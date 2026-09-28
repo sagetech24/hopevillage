@@ -111,7 +111,7 @@
                                         @elseif($voucher->discount_type === 'fixed')
                                             ${{ number_format($voucher->discount_value, 2) }} Off
                                         @elseif($voucher->discount_type === 'item')
-                                            ${{ number_format($voucher->discount_value, 2) }} worth of one item
+                                            Free Item
                                         @else
                                             {{ $voucher->discount_type }}
                                         @endif

@@ -10,14 +10,14 @@
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-6xl mx-auto sm:px-6 lg:px-0 px-0">
             <a href="{{ route('admin.admin-vouchers.index') }}" class="text-gray-600 hover:text-gray-900 md:mx-0 mx-4">
                 ← Back to Admin Vouchers
             </a>
             
-            <div class="mt-4 grid grid-cols-1 lg:grid-cols-4 gap-6 md:mx-0 mx-4">
+            <div class="mt-4 grid grid-cols-1 lg:grid-cols-6 gap-6 md:mx-0 mx-4">
                 <!-- Left Column - Voucher Details -->
-                <div class="lg:col-span-3 space-y-6">
+                <div class="lg:col-span-4 space-y-6">
                     <!-- Voucher Information Card -->
                     <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6">
                         <div class="flex items-center justify-between mb-4 border-b pb-2">
@@ -211,7 +211,17 @@
                                                             @foreach($claimedMembers as $member)
                                                                 <tr class="hover:bg-gray-50" wire:key="claimed-member-{{ $member['id'] }}">
                                                                     <td class="px-6 py-4 whitespace-nowrap">
-                                                                        <div class="text-md font-medium text-gray-900">{{ $member['name'] }}</div>
+                                                                        <div class="text-md font-medium text-gray-900">
+                                                                            @can('member.profile')
+                                                                                @if(! empty($member['qr_code']))
+                                                                                    <a href="{{ route('admin.members.profile', $member['qr_code']) }}" class="hover:text-orange-600 hover:underline transition-all duration-300 cursor-pointer text-orange-500">{{ $member['name'] }}</a>
+                                                                                @else
+                                                                                    {{ $member['name'] }}
+                                                                                @endif
+                                                                            @else
+                                                                                {{ $member['name'] }}
+                                                                            @endcan
+                                                                        </div>
                                                                         <div class="text-xs text-gray-500">
                                                                             Member Code: <strong>{{ $member['qr_code'] ?? '—' }}</strong>
                                                                         </div>
@@ -221,14 +231,8 @@
                                                                             {{ $member['claimed_at'] ? \Carbon\Carbon::parse($member['claimed_at'])->format('d M Y g:i A') : 'N/A' }}
                                                                         </div>
                                                                     </td>
-                                                                    <td class="px-6 py-4 whitespace-nowrap text-right">
-                                                                        <button
-                                                                            type="button"
-                                                                            wire:click="openVoidModal({{ $member['id'] }})"
-                                                                            class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition"
-                                                                        >
-                                                                            Void
-                                                                        </button>
+                                                                    <td class="px-2 py-4 whitespace-nowrap text-right">
+                                                                        <x-admin-voucher.member-actions :member-id="$member['id']" />
                                                                     </td>
                                                                 </tr>
                                                             @endforeach
@@ -297,7 +301,17 @@
                                                             @foreach($redeemedMembers as $member)
                                                                 <tr class="hover:bg-gray-50" wire:key="redeemed-member-{{ $member['id'] }}">
                                                                     <td class="px-6 py-4 whitespace-nowrap">
-                                                                        <div class="text-md font-medium text-gray-900">{{ $member['name'] }}</div>
+                                                                        <div class="text-md font-medium text-gray-900">
+                                                                            @can('member.profile')
+                                                                                @if(! empty($member['qr_code']))
+                                                                                    <a href="{{ route('admin.members.profile', $member['qr_code']) }}" class="hover:text-orange-600 hover:underline transition-all duration-300 cursor-pointer text-orange-500">{{ $member['name'] }}</a>
+                                                                                @else
+                                                                                    {{ $member['name'] }}
+                                                                                @endif
+                                                                            @else
+                                                                                {{ $member['name'] }}
+                                                                            @endcan
+                                                                        </div>
                                                                         <div class="text-xs text-gray-500">
                                                                             Member Code: <strong>{{ $member['qr_code'] ?? '—' }}</strong>
                                                                         </div>
@@ -324,14 +338,8 @@
                                                                             @endif
                                                                         </div>
                                                                     </td>
-                                                                    <td class="px-6 py-4 whitespace-nowrap text-right">
-                                                                        <button
-                                                                            type="button"
-                                                                            wire:click="openVoidModal({{ $member['id'] }})"
-                                                                            class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition"
-                                                                        >
-                                                                            Void
-                                                                        </button>
+                                                                    <td class="px-2 py-4 whitespace-nowrap text-right">
+                                                                        <x-admin-voucher.member-actions :member-id="$member['id']" />
                                                                     </td>
                                                                 </tr>
                                                             @endforeach
@@ -361,95 +369,7 @@
                 </div>
 
                 <!-- Right Column - Quick Actions -->
-                <div class="space-y-6">
-                    <!-- Voucher QR Code Card -->
-                    <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Voucher QR Code</h3>
-                        <div 
-                            x-data="{
-                                qrCodeImage: '{{ $qrCodeImage }}',
-                                voucherCode: '{{ $voucher->voucher_code }}',
-                                async downloadQR() {
-                                    try {
-                                        const response = await fetch(this.qrCodeImage);
-                                        const blob = await response.blob();
-                                        const url = window.URL.createObjectURL(blob);
-                                        const a = document.createElement('a');
-                                        a.href = url;
-                                        a.download = `voucher-qr-${this.voucherCode}.png`;
-                                        document.body.appendChild(a);
-                                        a.click();
-                                        window.URL.revokeObjectURL(url);
-                                        document.body.removeChild(a);
-                                    } catch (error) {
-                                        console.error('Download failed:', error);
-                                        alert('Failed to download QR code. Please try again.');
-                                    }
-                                },
-                                async shareQR() {
-                                    try {
-                                        if (navigator.share) {
-                                            const response = await fetch(this.qrCodeImage);
-                                            const blob = await response.blob();
-                                            const file = new File([blob], `voucher-qr-${this.voucherCode}.png`, { type: 'image/png' });
-                                            await navigator.share({
-                                                title: 'Voucher QR Code: {{ $voucher->name }}',
-                                                text: `Voucher Code: ${this.voucherCode}`,
-                                                files: [file]
-                                            });
-                                        } else if (navigator.clipboard) {
-                                            await navigator.clipboard.writeText(this.voucherCode);
-                                            alert('Voucher code copied to clipboard!');
-                                        } else {
-                                            // Fallback: copy voucher code to clipboard manually
-                                            const textArea = document.createElement('textarea');
-                                            textArea.value = this.voucherCode;
-                                            document.body.appendChild(textArea);
-                                            textArea.select();
-                                            document.execCommand('copy');
-                                            document.body.removeChild(textArea);
-                                            alert('Voucher code copied to clipboard!');
-                                        }
-                                    } catch (error) {
-                                        console.error('Share failed:', error);
-                                        // Fallback to copy voucher code
-                                        try {
-                                            await navigator.clipboard.writeText(this.voucherCode);
-                                            alert('Voucher code copied to clipboard!');
-                                        } catch (e) {
-                                            alert('Sharing not available. Voucher Code: ' + this.voucherCode);
-                                        }
-                                    }
-                                }
-                            }"
-                        >
-                            <div class="flex items-center justify-center mb-4">
-                                <img :src="qrCodeImage" alt="Voucher QR Code" class="w-full max-w-md h-64 object-contain rounded-lg border border-gray-300" id="qr-code-image">
-                            </div>
-                            <div class="flex gap-3 justify-center">
-                                <button 
-                                    @click="downloadQR()"
-                                    class="flex items-center text-xs gap-1 px-3 py-1 bg-transparent hover:bg-gray-200 cursor-pointer text-gray-500 border border-gray-500 font-medium rounded-lg transition-colors duration-200"
-                                >
-                                    <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                                    </svg>
-                                    Download
-                                </button>
-                                <button 
-                                    @click="shareQR()"
-                                    class="flex items-center text-xs gap-1 px-3 py-1 bg-green-600 hover:bg-green-700 cursor-pointer text-white border border-green-600 font-medium rounded-lg transition-colors duration-200"
-                                >
-                                    <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
-                                    </svg>
-
-                                    Share
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
+                <div class="lg:col-span-2 space-y-6">
                     <!-- Quick Actions Card -->
                     <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6">
                         <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Quick Actions</h3>

@@ -31,7 +31,7 @@
     } elseif (($voucher->discount_type ?? null) === 'percentage') {
         $valueText = rtrim(rtrim((string) ($voucher->discount_value ?? 0), '0'), '.').'% off';
     } elseif (($voucher->discount_type ?? null) === 'item') {
-        $valueText = '$'.number_format((float) ($voucher->discount_value ?? 0), 2).' item value';
+        $valueText = 'Free Item';
     } else {
         $valueText = '$'.number_format((float) ($voucher->discount_value ?? 0), 2).' off';
     }

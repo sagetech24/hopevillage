@@ -51,7 +51,16 @@
     @endif
 
     @if (session()->has('merchant-switched'))
-        <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+        <div
+            x-data="{ show: true }"
+            x-init="setTimeout(() => show = false, 2000)"
+            x-show="show"
+            x-transition:leave="transition ease-out duration-500"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative"
+            role="alert"
+        >
             <span class="block sm:inline">{{ session('merchant-switched') }}</span>
         </div>
     @endif

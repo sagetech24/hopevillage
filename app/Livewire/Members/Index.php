@@ -25,7 +25,7 @@ class Index extends Component
 
     public string $dateSort = 'desc'; // desc | asc
 
-    public string $pointsSort = 'default'; // default | highest | lowest | top_20 | top_50
+    public string $pointsSort = 'default'; // default | highest | lowest | top_20 | top_50 | active_30d | active_90d
 
     public bool $showMessage = false;
 
@@ -41,7 +41,23 @@ class Index extends Component
     /** @var int|null ID of member selected for "Update Email Address" modal. */
     public ?int $updateEmailUserId = null;
 
+    private const VALID_USER_TYPES = ['member', 'merchant_user'];
+
+    private const VALID_WORK_TYPES = ['all', 'empty', 'Migrant worker', 'Migrant domestic worker', 'Others'];
+
+    private const VALID_POINTS_SORTS = ['default', 'highest', 'lowest', 'top_20', 'top_50', 'active_30d', 'active_90d'];
+
+    private const VALID_DATE_SORTS = ['desc', 'asc'];
+
     protected $paginationTheme = 'tailwind';
+
+    protected $queryString = [
+        'search' => ['as' => 'keyword', 'except' => '', 'history' => true],
+        'userTypeFilter' => ['as' => 'user_type', 'except' => 'member', 'history' => true],
+        'typeOfWorkFilter' => ['as' => 'work_type', 'except' => 'all', 'history' => true],
+        'pointsSort' => ['as' => 'sort', 'except' => 'default', 'history' => true],
+        'dateSort' => ['as' => 'date_sort', 'except' => 'desc', 'history' => true],
+    ];
 
     protected $listeners = [
         'updateEmailModalClosed' => 'closeUpdateEmailModal',
@@ -50,6 +66,7 @@ class Index extends Component
     public function mount(): void
     {
         $this->showMessage = session()->has('message') || session()->has('error');
+        $this->sanitizeFilters();
 
         // Check for password reset action in URL
         $action = request()->query('action');
@@ -81,10 +98,31 @@ class Index extends Component
         $this->resetPage();
     }
 
+    public function hasUrlFilterValues(): bool
+    {
+        return $this->membersIndexQueryParams() !== [];
+    }
+
+    public function clearFilters(): void
+    {
+        $this->search = '';
+        $this->userTypeFilter = 'member';
+        $this->typeOfWorkFilter = 'all';
+        $this->pointsSort = 'default';
+        $this->dateSort = 'desc';
+        $this->resetPage();
+    }
+
     public function sortByDate(): void
     {
-        // Toggle between desc and asc
+        $this->pointsSort = 'default';
         $this->dateSort = $this->dateSort === 'desc' ? 'asc' : 'desc';
+        $this->resetPage();
+    }
+
+    public function sortByPoints(): void
+    {
+        $this->pointsSort = $this->pointsSort === 'highest' ? 'lowest' : 'highest';
         $this->resetPage();
     }
 
@@ -160,11 +198,10 @@ class Index extends Component
             return;
         }
 
-        // Redirect with URL parameters
-        return $this->redirect(route('admin.members.index', [
+        return $this->redirect(route('admin.members.index', $this->membersIndexQueryParams([
             'action' => 'password-reset',
             'userid' => $userId,
-        ]), navigate: true);
+        ])), navigate: true);
     }
 
     public function cancelPasswordReset()
@@ -174,8 +211,7 @@ class Index extends Component
         $this->password_confirmation = '';
         $this->showPasswordReset = false;
 
-        // Redirect without URL parameters
-        return $this->redirect(route('admin.members.index'), navigate: true);
+        return $this->redirect(route('admin.members.index', $this->membersIndexQueryParams()), navigate: true);
     }
 
     public function resetPassword()
@@ -232,19 +268,19 @@ class Index extends Component
         session()->flash('message', 'Password reset successfully.');
         $this->showMessage = true;
 
-        // Redirect without URL parameters
-        return $this->redirect(route('admin.members.index'), navigate: true);
+        return $this->redirect(route('admin.members.index', $this->membersIndexQueryParams()), navigate: true);
     }
 
     public function exportToCsv()
     {
         $members = $this->buildMembersQuery()->get();
-        $filename = ($this->resolvedUserTypeFilter() === 'merchant_user' ? 'merchant-users-' : 'members-').now()->format('Y-m-d-His').'.csv';
+        $activeDays = $this->activeMembersPeriodDays();
+        $filename = $this->exportFilename();
 
-        return Response::streamDownload(function () use ($members) {
+        return Response::streamDownload(function () use ($members, $activeDays) {
             $handle = fopen('php://output', 'w');
 
-            fputcsv($handle, [
+            $headers = [
                 'Name',
                 'Email',
                 'WhatsApp',
@@ -253,10 +289,16 @@ class Index extends Component
                 'Type of Work',
                 'Points',
                 'Date Registered',
-            ]);
+            ];
+
+            if ($activeDays !== null) {
+                $headers[] = "Activities ({$activeDays}d)";
+            }
+
+            fputcsv($handle, $headers);
 
             foreach ($members as $member) {
-                fputcsv($handle, [
+                $row = [
                     $member->name ?? '',
                     $member->email ?? '',
                     $member->whatsapp_number ?? '',
@@ -265,7 +307,13 @@ class Index extends Component
                     $member->type_of_work ?? 'N/A',
                     $member->total_points ?? 0,
                     $member->created_at?->format('d M Y g:i A') ?? 'N/A',
-                ]);
+                ];
+
+                if ($activeDays !== null) {
+                    $row[] = $member->period_activity_count ?? 0;
+                }
+
+                fputcsv($handle, $row);
             }
 
             fclose($handle);
@@ -320,6 +368,8 @@ class Index extends Component
         } elseif ($this->pointsSort === 'top_50') {
             $topIds = (clone $query)->orderByDesc('total_points')->limit(50)->pluck('id');
             $query->whereIn('id', $topIds)->orderByDesc('total_points');
+        } elseif (in_array($this->pointsSort, ['active_30d', 'active_90d'], true)) {
+            $this->applyActiveMembersSort($query, (int) $this->activeMembersPeriodDays());
         } else {
             if ($this->dateSort === 'asc') {
                 $query->orderBy('created_at', 'asc');
@@ -329,6 +379,83 @@ class Index extends Component
         }
 
         return $query;
+    }
+
+    /**
+     * Members with activity in the last N days, ranked by activity count.
+     *
+     * @param  Builder<User>  $query
+     */
+    private function applyActiveMembersSort(Builder $query, int $days): void
+    {
+        $since = now()->subDays($days);
+
+        $query->whereHas('memberActivities', function (Builder $activities) use ($since) {
+            $activities->where('activity_time', '>=', $since);
+        })
+            ->withCount([
+                'memberActivities as period_activity_count' => function (Builder $activities) use ($since) {
+                    $activities->where('activity_time', '>=', $since);
+                },
+            ])
+            ->orderByDesc('period_activity_count')
+            ->orderByDesc('total_points');
+    }
+
+    public function activeMembersPeriodDays(): ?int
+    {
+        return match ($this->pointsSort) {
+            'active_30d' => 30,
+            'active_90d' => 90,
+            default => null,
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    private function membersIndexQueryParams(array $extra = []): array
+    {
+        $params = array_filter([
+            'keyword' => $this->search !== '' ? $this->search : null,
+            'user_type' => $this->userTypeFilter !== 'member' ? $this->userTypeFilter : null,
+            'work_type' => $this->typeOfWorkFilter !== 'all' ? $this->typeOfWorkFilter : null,
+            'sort' => $this->pointsSort !== 'default' ? $this->pointsSort : null,
+            'date_sort' => $this->dateSort !== 'desc' ? $this->dateSort : null,
+        ], fn ($value) => $value !== null);
+
+        return array_merge($params, $extra);
+    }
+
+    private function exportFilename(): string
+    {
+        $stamp = now()->format('Y-m-d-His');
+
+        return match ($this->pointsSort) {
+            'active_30d' => "top-30-day-active-members-{$stamp}.csv",
+            'active_90d' => "top-90-day-active-members-{$stamp}.csv",
+            default => ($this->resolvedUserTypeFilter() === 'merchant_user' ? 'merchant-users-' : 'members-').$stamp.'.csv',
+        };
+    }
+
+    private function sanitizeFilters(): void
+    {
+        if (! in_array($this->userTypeFilter, self::VALID_USER_TYPES, true)) {
+            $this->userTypeFilter = 'member';
+        }
+
+        if (! in_array($this->typeOfWorkFilter, self::VALID_WORK_TYPES, true)) {
+            $this->typeOfWorkFilter = 'all';
+        }
+
+        if (! in_array($this->pointsSort, self::VALID_POINTS_SORTS, true)) {
+            $this->pointsSort = 'default';
+        }
+
+        if (! in_array($this->dateSort, self::VALID_DATE_SORTS, true)) {
+            $this->dateSort = 'desc';
+        }
     }
 
     public function render()

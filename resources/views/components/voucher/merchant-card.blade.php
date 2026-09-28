@@ -12,6 +12,8 @@
 
     if ($voucher->discount_type === 'percentage') {
         $discountLabel = rtrim(rtrim((string) $voucher->discount_value, '0'), '.').'% off';
+    } elseif ($voucher->discount_type === 'item') {
+        $discountLabel = 'Free Item';
     } else {
         $discountLabel = '$'.number_format((float) $voucher->discount_value, 2).' off';
     }
@@ -26,7 +28,9 @@
         ? 'border-gray-200 hover:border-gray-300 opacity-95'
         : ($category === 'pending_approval'
             ? 'border-amber-200 hover:border-amber-300'
-            : 'border-gray-200 hover:border-orange-200')),
+            : ($category === 'not_yet_valid'
+                ? 'border-sky-200 hover:border-sky-300'
+                : 'border-gray-200 hover:border-orange-200'))),
 ]) }}>
     <div class="flex gap-4 p-4 flex-1">
         <div class="flex flex-col gap-1 items-center shrink-0">

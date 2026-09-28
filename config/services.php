@@ -50,6 +50,9 @@ return [
         // For sandbox, this is usually: whatsapp:+14155238886
         'whatsapp_from' => env('TWILIO_WHATSAPP_FROM'),
 
+        // SMS sender number in E.164 format (e.g. +14155551234) — password reset SMS only
+        'sms_from' => env('TWILIO_SMS_FROM'),
+
         // Optional: if user enters 91234567, we can prepend +65 (set to 65 for Singapore).
         'default_country_code' => env('TWILIO_DEFAULT_COUNTRY_CODE'),
     ],
@@ -57,6 +60,12 @@ return [
     'recaptcha' => [
         'site_key' => env('RECAPTCHA_SITE_KEY'),
         'secret_key' => env('RECAPTCHA_SECRET_KEY'),
+    ],
+
+    'infobip' => [
+        'base_url' => env('INFOBIP_BASE_URL'),
+        'api_key' => env('INFOBIP_API_KEY'),
+        'sender' => env('INFOBIP_SENDER'),
     ],
 
     'singpass' => [

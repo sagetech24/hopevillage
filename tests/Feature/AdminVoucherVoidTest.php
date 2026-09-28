@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\AdminVouchers\Profile;
 use App\Models\AdminVoucher;
+use App\Models\MemberActivity;
 use App\Models\Merchant;
 use App\Models\PointLog;
 use App\Models\User;
@@ -99,6 +100,15 @@ class AdminVoucherVoidTest extends TestCase
         $this->assertStringContainsString($this->voucher->voucher_code, $log->description);
         $this->assertStringContainsString($this->admin->name, $log->description);
         $this->assertStringContainsString('Issued in error', $log->description);
+
+        $voidActivity = MemberActivity::query()
+            ->where('user_id', $this->member->id)
+            ->whereHas('activityType', fn ($q) => $q->where('name', PointsService::ACTIVITY_ADMIN_VOUCHER_VOID))
+            ->first();
+
+        $this->assertNotNull($voidActivity);
+        $this->assertSame($this->voucher->id, $voidActivity->metadata['admin_voucher_id']);
+        $this->assertSame($log->member_activity_id, $voidActivity->id);
     }
 
     public function test_void_awarded_voucher_does_not_refund_points(): void

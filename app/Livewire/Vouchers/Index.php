@@ -13,11 +13,17 @@ class Index extends Component
     use WithPagination;
 
     public $tab = 'merchant'; // 'merchant' or 'admin'
+
     public $search = '';
+
     public $statusFilter = 'all';
+
     public $merchantFilter = '';
+
     public $sortBy = 'start_date'; // 'start_date', 'created_at', 'name'
+
     public $sortDirection = 'desc'; // 'asc' or 'desc'
+
     public $showMessage = false;
 
     protected $paginationTheme = 'tailwind';
@@ -34,7 +40,7 @@ class Index extends Component
     public function mount()
     {
         $this->showMessage = session()->has('message');
-        
+
         // Get tab from URL parameter if present
         if (request()->has('tab')) {
             $tabParam = request()->query('tab', 'merchant');
@@ -98,9 +104,9 @@ class Index extends Component
     public function toggleApproval($voucher_code)
     {
         $voucher = Voucher::where('voucher_code', $voucher_code)->firstOrFail();
-        $voucher->is_active = !$voucher->is_active;
+        $voucher->is_active = ! $voucher->is_active;
         $voucher->save();
-        
+
         $status = $voucher->is_active ? 'approved' : 'rejected';
         session()->flash('message', "Voucher {$status} successfully.");
         $this->showMessage = true;
@@ -112,6 +118,7 @@ class Index extends Component
         if ($this->tab === 'admin') {
             return redirect()->route('admin.admin-vouchers.edit', $voucher_code);
         }
+
         return redirect()->route('admin.vouchers.edit', $voucher_code);
     }
 
@@ -126,7 +133,7 @@ class Index extends Component
             $voucher->delete(); // This will perform a soft delete
             session()->flash('message', 'Voucher archived successfully.');
         }
-        
+
         $this->showMessage = true;
         $this->dispatch('voucher-deleted');
     }
@@ -136,7 +143,7 @@ class Index extends Component
         if ($this->tab === 'admin') {
             return $this->renderAdminVouchers();
         }
-        
+
         return $this->renderMerchantVouchers();
     }
 
@@ -146,23 +153,13 @@ class Index extends Component
 
         if ($this->search) {
             $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('voucher_code', 'like', '%' . $this->search . '%')
-                  ->orWhere('description', 'like', '%' . $this->search . '%')
-                  ->orWhereHas('merchant', function ($q) {
-                      $q->where('name', 'like', '%' . $this->search . '%');
-                  });
+                $q->where('name', 'like', '%'.$this->search.'%')
+                    ->orWhere('voucher_code', 'like', '%'.$this->search.'%')
+                    ->orWhere('description', 'like', '%'.$this->search.'%')
+                    ->orWhereHas('merchant', function ($q) {
+                        $q->where('name', 'like', '%'.$this->search.'%');
+                    });
             });
-        }
-
-        if ($this->statusFilter !== 'all') {
-            if ($this->statusFilter === 'pending') {
-                $query->where('is_active', false);
-            } elseif ($this->statusFilter === 'active') {
-                $query->where('is_active', true);
-            } else {
-                $query->where('is_active', false);
-            }
         }
 
         if ($this->merchantFilter) {
@@ -172,40 +169,22 @@ class Index extends Component
         // Apply sorting
         if ($this->sortBy === 'start_date') {
             $query->orderByRaw('CASE WHEN valid_from IS NULL THEN 1 ELSE 0 END')
-                  ->orderBy('valid_from', $this->sortDirection === 'asc' ? 'asc' : 'desc');
+                ->orderBy('valid_from', $this->sortDirection === 'asc' ? 'asc' : 'desc');
         } else {
             $query->orderBy($this->sortBy, $this->sortDirection === 'asc' ? 'asc' : 'desc');
         }
 
-        $allVouchers = $query->get();
-        $merchants = Merchant::orderBy('name')->get();
-
-        // Group vouchers by status
-        $groupedVouchers = [
-            'pending' => collect(),
-            'active' => collect(),
-            'expired' => collect(),
-        ];
-
-        foreach ($allVouchers as $voucher) {
-            $status = $voucher->getListStatusGroup();
-            if (isset($groupedVouchers[$status])) {
-                $groupedVouchers[$status]->push($voucher);
-            }
-        }
+        $groupedAll = $this->groupByListStatus($query->get());
+        $statusCounts = $this->countsFromGroups($groupedAll);
 
         return view('livewire.vouchers.index', [
-            'groupedVouchers' => $groupedVouchers,
+            'groupedVouchers' => $this->applyGroupFilter($groupedAll),
             'vouchers' => collect(),
             'adminVouchers' => collect(),
             'groupedAdminVouchers' => collect(),
-            'merchants' => $merchants,
-            'statusCounts' => [
-                'pending' => $groupedVouchers['pending']->count(),
-                'active' => $groupedVouchers['active']->count(),
-                'expired' => $groupedVouchers['expired']->count(),
-            ],
-            'pendingCount' => $groupedVouchers['pending']->count(),
+            'merchants' => Merchant::orderBy('name')->get(),
+            'statusCounts' => $statusCounts,
+            'pendingCount' => $statusCounts['pending'],
         ])->layout('layouts.app');
     }
 
@@ -215,53 +194,91 @@ class Index extends Component
 
         if ($this->search) {
             $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('voucher_code', 'like', '%' . $this->search . '%')
-                  ->orWhere('description', 'like', '%' . $this->search . '%');
+                $q->where('name', 'like', '%'.$this->search.'%')
+                    ->orWhere('voucher_code', 'like', '%'.$this->search.'%')
+                    ->orWhere('description', 'like', '%'.$this->search.'%');
             });
-        }
-
-        if ($this->statusFilter !== 'all') {
-            $query->where('is_active', $this->statusFilter === 'active');
         }
 
         // Apply sorting
         if ($this->sortBy === 'start_date') {
             $query->orderByRaw('CASE WHEN valid_from IS NULL THEN 1 ELSE 0 END')
-                  ->orderBy('valid_from', $this->sortDirection === 'asc' ? 'asc' : 'desc');
+                ->orderBy('valid_from', $this->sortDirection === 'asc' ? 'asc' : 'desc');
         } else {
             $query->orderBy($this->sortBy, $this->sortDirection === 'asc' ? 'asc' : 'desc');
         }
 
-        $allAdminVouchers = $query->get();
-        $merchants = Merchant::orderBy('name')->get();
-
-        // Group admin vouchers by status
-        $groupedAdminVouchers = [
-            'pending' => collect(),
-            'active' => collect(),
-            'expired' => collect(),
-        ];
-
-        foreach ($allAdminVouchers as $voucher) {
-            $status = $voucher->getListStatusGroup();
-            if (isset($groupedAdminVouchers[$status])) {
-                $groupedAdminVouchers[$status]->push($voucher);
-            }
-        }
+        $groupedAll = $this->groupByListStatus($query->get());
+        $statusCounts = $this->countsFromGroups($groupedAll);
 
         return view('livewire.vouchers.index', [
             'vouchers' => collect(),
             'adminVouchers' => collect(),
             'groupedVouchers' => collect(),
-            'groupedAdminVouchers' => $groupedAdminVouchers,
-            'merchants' => $merchants,
-            'statusCounts' => [
-                'pending' => $groupedAdminVouchers['pending']->count(),
-                'active' => $groupedAdminVouchers['active']->count(),
-                'expired' => $groupedAdminVouchers['expired']->count(),
-            ],
-            'pendingCount' => $groupedAdminVouchers['pending']->count(),
+            'groupedAdminVouchers' => $this->applyGroupFilter($groupedAll),
+            'merchants' => Merchant::orderBy('name')->get(),
+            'statusCounts' => $statusCounts,
+            'pendingCount' => $statusCounts['pending'],
         ])->layout('layouts.app');
+    }
+
+    protected function emptyStatusGroups(): array
+    {
+        return [
+            'active' => collect(),
+            'pending' => collect(),
+            'not_yet_valid' => collect(),
+            'expired' => collect(),
+        ];
+    }
+
+    protected function groupByListStatus($vouchers): array
+    {
+        $grouped = $this->emptyStatusGroups();
+
+        foreach ($vouchers as $voucher) {
+            $status = $voucher->getListStatusGroup();
+            if (isset($grouped[$status])) {
+                $grouped[$status]->push($voucher);
+            }
+        }
+
+        return $grouped;
+    }
+
+    protected function countsFromGroups(array $grouped): array
+    {
+        return [
+            'pending' => $grouped['pending']->count(),
+            'active' => $grouped['active']->count(),
+            'not_yet_valid' => $grouped['not_yet_valid']->count(),
+            'expired' => $grouped['expired']->count(),
+        ];
+    }
+
+    protected function applyGroupFilter(array $grouped): array
+    {
+        $filter = $this->normalizedStatusFilter();
+        if ($filter === 'all') {
+            return $grouped;
+        }
+
+        $filtered = $this->emptyStatusGroups();
+        if (isset($grouped[$filter])) {
+            $filtered[$filter] = $grouped[$filter];
+        }
+
+        return $filtered;
+    }
+
+    protected function normalizedStatusFilter(): string
+    {
+        return match ($this->statusFilter) {
+            'pending', 'pending_approval' => 'pending',
+            'active' => 'active',
+            'not_yet_valid' => 'not_yet_valid',
+            'expired', 'inactive' => 'expired',
+            default => 'all',
+        };
     }
 }

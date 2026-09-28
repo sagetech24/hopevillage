@@ -9,21 +9,37 @@ use Livewire\WithFileUploads;
 class Form extends Component
 {
     use WithFileUploads;
+
     public $voucherCode;
+
     public $voucherId;
+
     public $name = '';
+
     public $description = '';
-    public $discount_type = 'percentage';
+
+    public $discount_type = '';
+
     public $discount_value = '';
+
     public $min_purchase = '';
+
     public $max_discount = '';
+
     public $valid_from = '';
+
     public $valid_until = '';
+
     public $usage_limit = '';
+
     public $is_active = false;
+
     public $visibilityToTypeOfWork = [];
+
     public $showMessage = false;
+
     public $voucherImage;
+
     public $existingVoucherImage = null;
 
     protected $rules = [
@@ -45,24 +61,24 @@ class Form extends Component
     public function mount($voucher_code = null)
     {
         $merchant = auth()->user()->currentMerchant();
-        if (!$merchant) {
-            $this->redirect(route('merchant.dashboard'));
+        if (! $merchant) {
+            $this->redirect(route('merchant.dashboard.v2'));
 
             return;
         }
 
-        if (!$merchant->is_active) {
+        if (! $merchant->is_active) {
             abort(403, 'Your merchant account is pending approval. You cannot create or edit vouchers until your account is approved.');
         }
 
         $this->showMessage = session()->has('message');
-        
+
         if ($voucher_code) {
             $this->voucherCode = $voucher_code;
             $voucher = Voucher::where('voucher_code', $voucher_code)
                 ->where('merchant_id', $merchant->id)
                 ->firstOrFail();
-            
+
             $this->voucherId = $voucher->id;
             $this->name = $voucher->name;
             $this->description = $voucher->description;
@@ -75,7 +91,7 @@ class Form extends Component
             $this->usage_limit = $voucher->usage_limit;
             $this->is_active = (bool) $voucher->is_active;
             $this->visibilityToTypeOfWork = $voucher->visibility_to_type_of_work ?? config('member.type_of_work_options', ['Migrant worker', 'Migrant domestic worker', 'Others']);
-            
+
             $media = $voucher->getFirstMedia('image');
             if ($media) {
                 $this->existingVoucherImage = $media->getUrl();
@@ -100,15 +116,19 @@ class Form extends Component
     public function save()
     {
         $merchant = auth()->user()->currentMerchant();
-        if (!$merchant) {
-            return redirect()->route('merchant.dashboard');
+        if (! $merchant) {
+            return redirect()->route('merchant.dashboard.v2');
         }
 
-        if (!$merchant->is_active) {
+        if (! $merchant->is_active) {
             abort(403, 'Your merchant account is pending approval. You cannot create or edit vouchers until your account is approved.');
         }
 
         $this->validate();
+
+        if ($this->discount_type === 'item') {
+            $this->discount_value = 100;
+        }
 
         $data = [
             'merchant_id' => $merchant->id,
@@ -130,7 +150,7 @@ class Form extends Component
                 ->where('merchant_id', $merchant->id)
                 ->firstOrFail();
             $voucher->update($data);
-            if (!$voucher->is_active) {
+            if (! $voucher->is_active) {
                 $message = 'Voucher updated successfully. It is still pending administrator approval.';
             } else {
                 $message = 'Voucher updated successfully.';
@@ -146,15 +166,16 @@ class Form extends Component
         if ($this->voucherImage) {
             // Clear existing image
             $voucher->clearMediaCollection('image');
-            
+
             // Add new image
             $voucher->addMedia($this->voucherImage->getRealPath())
-                ->usingName($voucher->name . ' - Image')
+                ->usingName($voucher->name.' - Image')
                 ->toMediaCollection('image');
         }
 
         session()->flash('message', $message);
         $this->showMessage = true;
+
         return redirect()->route('merchant.vouchers.index');
     }
 
@@ -178,15 +199,27 @@ class Form extends Component
     public function render()
     {
         $discountTypes = [
+            '' => '-- Select Deal Type --',
             'percentage' => 'Percentage',
             'fixed' => 'Fixed Amount',
             'item' => 'Free Item',
         ];
-        $typeOfWorkOptions = config('member.type_of_work_options', ['Migrant worker', 'Migrant domestic worker', 'Others']);
+        $typeOfWorkOptions = config('member.type_of_work_options', ['Migrant worker', 'Migrant domestic worker']);
 
-        return view('livewire.merchant.vouchers.form', [
+        $voucher = null;
+        if ($this->voucherCode) {
+            $merchant = auth()->user()?->currentMerchant();
+            if ($merchant) {
+                $voucher = Voucher::where('voucher_code', $this->voucherCode)
+                    ->where('merchant_id', $merchant->id)
+                    ->first();
+            }
+        }
+
+        return view('livewire.merchant.vouchers.form-v2', [
             'discountTypes' => $discountTypes,
             'typeOfWorkOptions' => $typeOfWorkOptions,
+            'voucher' => $voucher,
         ])->layout('layouts.app');
     }
 }

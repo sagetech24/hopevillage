@@ -8,11 +8,8 @@
     [$label, $classes, $dot] = match ($category) {
         'active' => ['Active', 'bg-green-50 text-green-700 border-green-200', 'bg-green-500'],
         'pending_approval' => ['Pending Approval', 'bg-amber-50 text-amber-800 border-amber-200', 'bg-amber-500'],
-        'expired' => [
-            $voucher->getDisplayStatusLabel(),
-            'bg-gray-100 text-gray-700 border-gray-300',
-            'bg-gray-400',
-        ],
+        'not_yet_valid' => ['Not Yet Valid', 'bg-sky-50 text-sky-700 border-sky-200', 'bg-sky-500'],
+        'expired' => ['Expired', 'bg-gray-100 text-gray-700 border-gray-300', 'bg-gray-400'],
         default => ['Expired', 'bg-gray-100 text-gray-700 border-gray-300', 'bg-gray-400'],
     };
 @endphp

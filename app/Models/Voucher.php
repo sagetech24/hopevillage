@@ -14,7 +14,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Voucher extends Model implements HasMedia
 {
-    use HasFactory, SoftDeletes, InteractsWithMedia;
+    use HasFactory, InteractsWithMedia, SoftDeletes;
 
     protected $fillable = [
         'merchant_id',
@@ -100,6 +100,7 @@ class Voucher extends Model implements HasMedia
     public function scopeValid(Builder $query): Builder
     {
         $now = now();
+
         return $query->where('is_active', true)
             ->where(function ($q) use ($now) {
                 $q->whereNull('valid_from')->orWhere('valid_from', '<=', $now);
@@ -128,13 +129,11 @@ class Voucher extends Model implements HasMedia
 
     /**
      * Generate a unique voucher code.
-     *
-     * @return string
      */
     protected static function generateUniqueVoucherCode(): string
     {
         do {
-            $code = 'VOU-' . strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
+            $code = 'VOU-'.strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
         } while (static::where('voucher_code', $code)->exists());
 
         return $code;
@@ -146,7 +145,7 @@ class Voucher extends Model implements HasMedia
     public function isValid(): bool
     {
         // First check if the voucher is active
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return false;
         }
 
@@ -157,7 +156,7 @@ class Voucher extends Model implements HasMedia
         if ($this->valid_from !== null) {
             $validFrom = $this->valid_from;
             // Ensure we have a Carbon instance
-            if (!($validFrom instanceof \Carbon\Carbon)) {
+            if (! ($validFrom instanceof \Carbon\Carbon)) {
                 $validFrom = \Carbon\Carbon::parse($validFrom);
             }
             // Current time must be greater than or equal to valid_from
@@ -171,7 +170,7 @@ class Voucher extends Model implements HasMedia
         if ($this->valid_until !== null) {
             $validUntil = $this->valid_until;
             // Ensure we have a Carbon instance
-            if (!($validUntil instanceof \Carbon\Carbon)) {
+            if (! ($validUntil instanceof \Carbon\Carbon)) {
                 $validUntil = \Carbon\Carbon::parse($validUntil);
             }
             // Current time must be less than or equal to valid_until
@@ -186,6 +185,15 @@ class Voucher extends Model implements HasMedia
         }
 
         return true;
+    }
+
+    /**
+     * Whether a claimed voucher may still be redeemed.
+     * Usage limit is claim inventory only and is not re-checked here.
+     */
+    public function isRedeemable(): bool
+    {
+        return $this->is_active && $this->isWithinValidityDate();
     }
 
     /**
@@ -235,11 +243,28 @@ class Voucher extends Model implements HasMedia
     }
 
     /**
-     * Admin list grouping key: active, pending, or expired.
+     * Whether the voucher has a start date that has not been reached yet.
+     */
+    public function isNotYetStarted(): bool
+    {
+        if ($this->valid_from === null) {
+            return false;
+        }
+
+        $validFrom = $this->valid_from instanceof \Carbon\Carbon
+            ? $this->valid_from
+            : \Carbon\Carbon::parse($this->valid_from);
+
+        return now()->lt($validFrom);
+    }
+
+    /**
+     * List grouping key: active, pending, not_yet_valid, or expired.
      *
-     * - Active: within validity date and approved (is_active)
-     * - Pending: within validity date but not yet approved
-     * - Expired: beyond the validity end date (any approval status)
+     * - Expired: past the validity end date (any approval status)
+     * - Pending: not yet approved and not expired (including future start dates)
+     * - Not yet valid: approved, but the start date has not been reached
+     * - Active: approved and currently within the validity window
      */
     public function getListStatusGroup(): string
     {
@@ -247,35 +272,37 @@ class Voucher extends Model implements HasMedia
             return 'expired';
         }
 
-        if ($this->isWithinValidityDate()) {
-            return $this->is_active ? 'active' : 'pending';
+        if (! $this->is_active) {
+            return 'pending';
         }
 
-        return 'expired';
+        if ($this->isNotYetStarted()) {
+            return 'not_yet_valid';
+        }
+
+        return 'active';
     }
 
     /**
      * Display category for merchant voucher list sorting and badges.
-     * Order: Active → Pending Approval → Expired
+     * Order: Active → Pending Approval → Not Yet Valid → Expired
      */
     public function getDisplayStatusCategory(): string
     {
         return match ($this->getListStatusGroup()) {
             'active' => 'active',
             'pending' => 'pending_approval',
+            'not_yet_valid' => 'not_yet_valid',
             default => 'expired',
         };
     }
 
     public function getDisplayStatusLabel(): string
     {
-        if ($this->getDisplayStatusCategory() === 'expired' && $this->getStatusReason() === 'Not Yet Valid') {
-            return 'Not Yet Valid';
-        }
-
         return match ($this->getDisplayStatusCategory()) {
             'active' => 'Active',
             'pending_approval' => 'Pending Approval',
+            'not_yet_valid' => 'Not Yet Valid',
             'expired' => 'Expired',
         };
     }
@@ -285,7 +312,8 @@ class Voucher extends Model implements HasMedia
         return match ($this->getListStatusGroup()) {
             'active' => 1,
             'pending' => 2,
-            'expired' => 3,
+            'not_yet_valid' => 3,
+            'expired' => 4,
         };
     }
 
@@ -294,12 +322,12 @@ class Voucher extends Model implements HasMedia
      */
     public function getStatusReason(): ?string
     {
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return 'Inactive';
         }
 
         $now = now();
-        
+
         // Check if voucher has started (valid_from)
         if ($this->valid_from !== null) {
             if ($now->isBefore($this->valid_from)) {
@@ -323,6 +351,41 @@ class Voucher extends Model implements HasMedia
     }
 
     /**
+     * Status reason when a claimed voucher cannot be redeemed.
+     * Does not include Usage Limit Reached (claim inventory only).
+     */
+    public function getRedeemStatusReason(): ?string
+    {
+        if (! $this->is_active) {
+            return 'Inactive';
+        }
+
+        $now = now();
+
+        if ($this->valid_from !== null) {
+            $validFrom = $this->valid_from instanceof \Carbon\Carbon
+                ? $this->valid_from
+                : \Carbon\Carbon::parse($this->valid_from);
+
+            if ($now->lt($validFrom)) {
+                return 'Not Yet Valid';
+            }
+        }
+
+        if ($this->valid_until !== null) {
+            $validUntil = $this->valid_until instanceof \Carbon\Carbon
+                ? $this->valid_until
+                : \Carbon\Carbon::parse($this->valid_until);
+
+            if ($now->gt($validUntil)) {
+                return 'Expired';
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Register media collections for voucher images
      */
     public function registerMediaCollections(): void
@@ -338,6 +401,7 @@ class Voucher extends Model implements HasMedia
     public function getImageUrlAttribute(): ?string
     {
         $media = $this->getFirstMedia('image');
+
         return $media ? $media->getUrl() : null;
     }
 }

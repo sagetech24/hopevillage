@@ -224,6 +224,9 @@
                             'member_attend_event' => ['label' => 'Attend', 'bg' => 'bg-blue-50', 'text' => 'text-blue-600', 'border' => 'border-blue-600'],
                             'member_claim_voucher' => ['label' => 'Claim', 'bg' => 'bg-orange-100', 'text' => 'text-orange-200', 'border' => 'border-orange-200'],
                             'member_redeem_voucher' => ['label' => 'Redeem', 'bg' => 'bg-blue-100', 'text' => 'text-blue-600', 'border' => 'border-blue-600'],
+                            'member_claim_admin_voucher' => ['label' => 'Claim', 'bg' => 'bg-orange-100', 'text' => 'text-orange-600', 'border' => 'border-orange-200'],
+                            'member_redeem_admin_voucher' => ['label' => 'Redeem', 'bg' => 'bg-blue-100', 'text' => 'text-blue-600', 'border' => 'border-blue-600'],
+                            'admin_void_admin_voucher' => ['label' => 'Void', 'bg' => 'bg-gray-100', 'text' => 'text-gray-600', 'border' => 'border-gray-400'],
                             default => ['label' => ucfirst(str_replace('_', ' ', $activityTypeName)), 'bg' => 'bg-gray-50', 'text' => 'text-gray-600', 'border' => 'border-gray-600'],
                         };
                     };
@@ -247,8 +250,8 @@
                                     $textClass = $activityInfo['text'];
                                     $borderClass = $activityInfo['border'];
                                     
-                                    $locationName = $activity->location->name ?? '';
-                                    $amenityName = $activity->amenity->name ?? '';
+                                    $locationName = $activity->location?->name ?? '';
+                                    $amenityName = $activity->amenity?->name ?? '';
                                     $displayName = $locationName;
                                     if ($amenityName) {
                                         $displayName .= ' - ' . $amenityName;
@@ -284,8 +287,8 @@
                                             $textClass = $activityInfo['text'];
                                             $borderClass = $activityInfo['border'];
                                             
-                                            $locationName = $activity->location->name ?? '';
-                                            $amenityName = $activity->amenity->name ?? '';
+                                            $locationName = $activity->location?->name ?? '';
+                                            $amenityName = $activity->amenity?->name ?? '';
                                             $displayName = $locationName;
                                             if ($amenityName) {
                                                 $displayName .= ' - ' . $amenityName;

@@ -17,19 +17,31 @@ class Index extends Component
     public string $tab = 'active';
 
     public bool $showQr = false;
+
     public ?string $qrImage = null;
+
     public ?string $qrVoucherName = null;
+
     public ?string $qrVoucherCode = null;
+
     public ?string $qrRedeemableAt = null;
 
     public bool $showClaimConfirm = false;
+
     public ?int $pendingClaimId = null;
+
     public ?string $pendingClaimType = null;
+
     public ?string $confirmName = null;
+
     public ?string $confirmMerchantName = null;
+
     public ?string $confirmDiscountLabel = null;
+
     public ?int $confirmPointsCost = null;
+
     public ?string $confirmValidUntil = null;
+
     public ?int $confirmUserPoints = null;
 
     protected $listeners = [
@@ -47,23 +59,27 @@ class Index extends Component
     public function openClaimConfirm(int $id, string $type): void
     {
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             $this->dispatch('notify', type: 'error', message: 'You must be logged in to claim vouchers.');
+
             return;
         }
 
         if ($type === 'admin') {
             $voucher = AdminVoucher::query()->with('merchants')->whereKey($id)->first();
-            if (!$voucher || !$voucher->isValid() || !$voucher->isVisibleToMember($user)) {
+            if (! $voucher || ! $voucher->isValid() || ! $voucher->isVisibleToMember($user)) {
                 $this->dispatch('notify', type: 'error', message: 'Voucher is not available.');
+
                 return;
             }
             if ($user->hasActiveAdminVoucher($id)) {
                 $this->dispatch('notify', type: 'info', message: 'You already claimed this admin voucher.');
+
                 return;
             }
             if ($user->total_points < $voucher->points_cost) {
-                $this->dispatch('notify', type: 'error', message: 'Insufficient points. You need ' . number_format($voucher->points_cost) . ' points to claim this voucher.');
+                $this->dispatch('notify', type: 'error', message: 'Insufficient points. You need '.number_format($voucher->points_cost).' points to claim this voucher.');
+
                 return;
             }
 
@@ -77,19 +93,21 @@ class Index extends Component
             $this->confirmUserPoints = (int) $user->total_points;
         } else {
             $voucher = Voucher::query()->with('merchant')->whereKey($id)->first();
-            if (!$voucher || !$voucher->isValid() || !$voucher->isVisibleToMember($user)) {
+            if (! $voucher || ! $voucher->isValid() || ! $voucher->isVisibleToMember($user)) {
                 $this->dispatch('notify', type: 'error', message: 'Voucher is not available.');
+
                 return;
             }
             if ($user->vouchers()->where('vouchers.id', $id)->exists()) {
                 $this->dispatch('notify', type: 'info', message: 'You already claimed this voucher.');
+
                 return;
             }
 
             if ($voucher->discount_type === 'percentage') {
-                $discount = rtrim(rtrim((string) $voucher->discount_value, '0'), '.') . '% off';
+                $discount = rtrim(rtrim((string) $voucher->discount_value, '0'), '.').'% off';
             } else {
-                $discount = '$' . number_format((float) $voucher->discount_value, 2) . ' off';
+                $discount = '$'.number_format((float) $voucher->discount_value, 2).' off';
             }
 
             $this->confirmName = $voucher->name;
@@ -137,23 +155,27 @@ class Index extends Component
     public function claim(int $voucherId): void
     {
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             $this->dispatch('notify', type: 'error', message: 'You must be logged in to claim vouchers.');
+
             return;
         }
 
         $voucher = Voucher::query()->whereKey($voucherId)->first();
-        if (!$voucher || !$voucher->isValid()) {
+        if (! $voucher || ! $voucher->isValid()) {
             $this->dispatch('notify', type: 'error', message: 'Voucher is not available.');
+
             return;
         }
-        if (!$voucher->isVisibleToMember($user)) {
+        if (! $voucher->isVisibleToMember($user)) {
             $this->dispatch('notify', type: 'error', message: 'Voucher is not available.');
+
             return;
         }
 
         if ($user->vouchers()->where('vouchers.id', $voucherId)->exists()) {
             $this->dispatch('notify', type: 'info', message: 'You already claimed this voucher.');
+
             return;
         }
 
@@ -171,28 +193,33 @@ class Index extends Component
     public function claimAdminVoucher(int $adminVoucherId): void
     {
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             $this->dispatch('notify', type: 'error', message: 'You must be logged in to claim vouchers.');
+
             return;
         }
 
         $adminVoucher = AdminVoucher::query()->whereKey($adminVoucherId)->first();
-        if (!$adminVoucher || !$adminVoucher->isValid()) {
+        if (! $adminVoucher || ! $adminVoucher->isValid()) {
             $this->dispatch('notify', type: 'error', message: 'Admin voucher is not available.');
+
             return;
         }
-        if (!$adminVoucher->isVisibleToMember($user)) {
+        if (! $adminVoucher->isVisibleToMember($user)) {
             $this->dispatch('notify', type: 'error', message: 'Admin voucher is not available.');
+
             return;
         }
 
         if ($user->hasActiveAdminVoucher($adminVoucherId)) {
             $this->dispatch('notify', type: 'info', message: 'You already claimed this admin voucher.');
+
             return;
         }
 
         if ($user->total_points < $adminVoucher->points_cost) {
-            $this->dispatch('notify', type: 'error', message: 'Insufficient points. You need ' . number_format($adminVoucher->points_cost) . ' points to claim this voucher.');
+            $this->dispatch('notify', type: 'error', message: 'Insufficient points. You need '.number_format($adminVoucher->points_cost).' points to claim this voucher.');
+
             return;
         }
 
@@ -206,17 +233,17 @@ class Index extends Component
             });
 
             $user->refresh();
-            $this->dispatch('notify', type: 'success', message: 'Admin voucher claimed! ' . number_format($adminVoucher->points_cost) . ' points deducted.');
+            $this->dispatch('notify', type: 'success', message: 'Admin voucher claimed! '.number_format($adminVoucher->points_cost).' points deducted.');
             $this->dispatch('points-updated');
         } catch (\Throwable $e) {
-            $this->dispatch('notify', type: 'error', message: 'Failed to claim voucher: ' . $e->getMessage());
+            $this->dispatch('notify', type: 'error', message: 'Failed to claim voucher: '.$e->getMessage());
         }
     }
 
     public function showClaimedQr(string $voucherCode, string $type): void
     {
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             return;
         }
 
@@ -227,8 +254,9 @@ class Index extends Component
                 ->wherePivot('status', 'claimed')
                 ->first();
 
-            if (!$voucher) {
+            if (! $voucher) {
                 $this->dispatch('notify', type: 'error', message: 'Voucher is no longer claimable for QR redemption.');
+
                 return;
             }
 
@@ -242,8 +270,9 @@ class Index extends Component
                 ->wherePivot('status', 'claimed')
                 ->first();
 
-            if (!$voucher) {
+            if (! $voucher) {
                 $this->dispatch('notify', type: 'error', message: 'Voucher is no longer claimable for QR redemption.');
+
                 return;
             }
 
@@ -252,7 +281,7 @@ class Index extends Component
             $this->qrRedeemableAt = $voucher->merchants->pluck('name')->join(', ');
         }
 
-        $this->qrImage = app(QrCodeService::class)->generateQrCodeImage($voucherCode . '_' . $user->qr_code, 420);
+        $this->qrImage = app(QrCodeService::class)->generateQrCodeImage($voucherCode.'_'.$user->qr_code, 420);
         $this->showQr = true;
     }
 
@@ -264,7 +293,7 @@ class Index extends Component
     public function handleVoucherRedeemed($data): void
     {
         $currentUser = auth()->user();
-        if (!$currentUser || !isset($data['member_id']) || (int) $data['member_id'] !== (int) $currentUser->id) {
+        if (! $currentUser || ! isset($data['member_id']) || (int) $data['member_id'] !== (int) $currentUser->id) {
             return;
         }
 
@@ -304,12 +333,14 @@ class Index extends Component
     {
         if (! $this->canUseAdminTestRedeem()) {
             $this->dispatch('notify', type: 'error', message: 'This action is not available.');
+
             return;
         }
 
         $user = auth()->user();
         if (! $user) {
             $this->dispatch('notify', type: 'error', message: 'You must be logged in.');
+
             return;
         }
 
@@ -322,7 +353,7 @@ class Index extends Component
                 $this->adminTestRedeemMerchantVoucher($user, $id);
             }
         } catch (\Throwable $e) {
-            $this->dispatch('notify', type: 'error', message: 'Failed to redeem voucher: ' . $e->getMessage());
+            $this->dispatch('notify', type: 'error', message: 'Failed to redeem voucher: '.$e->getMessage());
         }
     }
 
@@ -335,6 +366,7 @@ class Index extends Component
 
         if (! $voucher) {
             $this->dispatch('notify', type: 'error', message: 'Claimed voucher not found.');
+
             return;
         }
 
@@ -359,6 +391,7 @@ class Index extends Component
 
         if (! $voucher) {
             $this->dispatch('notify', type: 'error', message: 'Claimed voucher not found.');
+
             return;
         }
 
@@ -367,6 +400,8 @@ class Index extends Component
                 'status' => 'redeemed',
                 'redeemed_at' => now(),
             ]);
+
+            app(PointsService::class)->recordAdminVoucherRedeem($user, $voucher);
         });
 
         $this->dispatch('notify', type: 'success', message: 'Voucher marked as redeemed (admin test).');
@@ -375,7 +410,7 @@ class Index extends Component
     public function getActiveItemsProperty(): Collection
     {
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             return collect();
         }
 
@@ -447,7 +482,7 @@ class Index extends Component
     public function getClaimedItemsProperty(): Collection
     {
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             return collect();
         }
 
@@ -508,7 +543,7 @@ class Index extends Component
     public function getRedeemedItemsProperty(): Collection
     {
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             return collect();
         }
 

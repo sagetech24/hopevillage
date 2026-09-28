@@ -9,15 +9,17 @@ use Livewire\Component;
 class Profile extends Component
 {
     public $voucherCode;
+
     public $voucher;
+
     public $merchant;
 
     public function mount($voucher_code)
     {
         $this->voucherCode = $voucher_code;
         $this->merchant = auth()->user()->currentMerchant();
-        
-        if (!$this->merchant) {
+
+        if (! $this->merchant) {
             $this->redirect(route('merchant.dashboard'));
 
             return;
@@ -44,7 +46,7 @@ class Profile extends Component
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'fin' => $user->fin,
+                    'qr_code' => $user->qr_code,
                     'claimed_at' => $user->pivot->claimed_at,
                 ];
             });
@@ -61,7 +63,7 @@ class Profile extends Component
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'fin' => $user->fin,
+                    'qr_code' => $user->qr_code,
                     'claimed_at' => $user->pivot->claimed_at,
                     'redeemed_at' => $user->pivot->redeemed_at,
                 ];
@@ -73,11 +75,12 @@ class Profile extends Component
         $qrCodeService = app(QrCodeService::class);
         $qrCodeImage = $qrCodeService->generateQrCodeImage($this->voucher->voucher_code, 400);
 
-        return view('livewire.merchant.vouchers.profile', [
+        return view('livewire.merchant.vouchers.profile-v2', [
             'voucher' => $this->voucher,
             'claimedMembers' => $this->claimedMembers,
             'redeemedMembers' => $this->redeemedMembers,
             'qrCodeImage' => $qrCodeImage,
+            'merchant' => $this->merchant,
         ])->layout('layouts.app');
     }
 }

@@ -5,12 +5,12 @@
 
     @if (Illuminate\Support\Facades\Gate::allows($requiredPermission))
         <x-slot name="header">
-            <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+            <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 md:px-0 xl:px-0 px-3">
                 <div class="flex justify-between items-center">
                     <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                        {{ $locationId ? __('Edit Location') : __('Create Location') }}
+                        {{ $locationId ? __('Edit Location') : __('Add New Location') }}
                     </h2>
-                    <a href="{{ route('admin.locations.index') }}" class="text-gray-600 hover:text-gray-900">
+                    <a href="{{ route('admin.locations.index') }}" class="text-orange-600 hover:text-orange-800 transition-all duration-200">
                         ← Back to Locations
                     </a>
                 </div>
@@ -18,7 +18,7 @@
         </x-slot>
 
         <div class="py-12">
-            <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+            <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 md:px-0 xl:px-0 px-3">
                 @if (session()->has('message'))
                     <div 
                         x-data="{ 

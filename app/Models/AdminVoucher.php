@@ -10,11 +10,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class AdminVoucher extends Model implements HasMedia
 {
-    use HasFactory, SoftDeletes, InteractsWithMedia;
+    use HasFactory, InteractsWithMedia, SoftDeletes;
 
     protected $fillable = [
         'voucher_code',
@@ -85,6 +84,18 @@ class AdminVoucher extends Model implements HasMedia
             ->withTimestamps();
     }
 
+    /**
+     * Cost per voucher: cost per point × points per voucher.
+     */
+    public function costPerVoucher(): float
+    {
+        return round(
+            max(0, (float) ($this->amount_cost ?? 0))
+            * max(0, (float) ($this->points_cost ?? 0)),
+            2
+        );
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'user_admin_voucher')
@@ -107,6 +118,7 @@ class AdminVoucher extends Model implements HasMedia
     public function scopeValid(Builder $query): Builder
     {
         $now = now();
+
         return $query->where('is_active', true)
             ->where(function ($q) use ($now) {
                 $q->whereNull('valid_from')->orWhere('valid_from', '<=', $now);
@@ -140,13 +152,11 @@ class AdminVoucher extends Model implements HasMedia
 
     /**
      * Generate a unique voucher code.
-     *
-     * @return string
      */
     protected static function generateUniqueVoucherCode(): string
     {
         do {
-            $code = 'AVOU-' . strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
+            $code = 'AVOU-'.strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
         } while (static::where('voucher_code', $code)->exists());
 
         return $code;
@@ -158,7 +168,7 @@ class AdminVoucher extends Model implements HasMedia
     public function isValid(): bool
     {
         // First check if the voucher is active
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return false;
         }
 
@@ -170,10 +180,10 @@ class AdminVoucher extends Model implements HasMedia
         if ($this->valid_from !== null) {
             $validFrom = $this->valid_from;
             // Ensure we have a Carbon instance
-            if (!($validFrom instanceof \Carbon\Carbon)) {
+            if (! ($validFrom instanceof \Carbon\Carbon)) {
                 $validFrom = \Carbon\Carbon::parse($validFrom);
             }
-            
+
             // Current time must be greater than or equal to valid_from (inclusive)
             // Using lt() which is exclusive: returns true only if now < validFrom
             // So if now >= validFrom (inclusive), the voucher has started
@@ -187,10 +197,10 @@ class AdminVoucher extends Model implements HasMedia
         if ($this->valid_until !== null) {
             $validUntil = $this->valid_until;
             // Ensure we have a Carbon instance
-            if (!($validUntil instanceof \Carbon\Carbon)) {
+            if (! ($validUntil instanceof \Carbon\Carbon)) {
                 $validUntil = \Carbon\Carbon::parse($validUntil);
             }
-            
+
             // Current time must be less than or equal to valid_until (inclusive)
             // Using gt() which is exclusive: returns true only if now > validUntil
             // So if now <= validUntil (inclusive), the voucher is still valid
@@ -208,26 +218,35 @@ class AdminVoucher extends Model implements HasMedia
     }
 
     /**
+     * Whether a claimed admin voucher may still be redeemed.
+     * Usage limit is claim inventory only and is not re-checked here.
+     */
+    public function isRedeemable(): bool
+    {
+        return $this->is_active && $this->isWithinValidityDate();
+    }
+
+    /**
      * Get the status reason if voucher is not valid
      */
     public function getStatusReason(): ?string
     {
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return 'Inactive';
         }
 
         // Get current time
         $now = now();
-        
+
         // Check if voucher has started (valid_from)
         // If valid_from is set, check if current time is before valid_from
         if ($this->valid_from !== null) {
             $validFrom = $this->valid_from;
             // Ensure we have a Carbon instance
-            if (!($validFrom instanceof \Carbon\Carbon)) {
+            if (! ($validFrom instanceof \Carbon\Carbon)) {
                 $validFrom = \Carbon\Carbon::parse($validFrom);
             }
-            
+
             // Check if current time is before the valid_from date/time (exclusive)
             // If now < validFrom, voucher hasn't started yet
             if ($now->lt($validFrom)) {
@@ -240,10 +259,10 @@ class AdminVoucher extends Model implements HasMedia
         if ($this->valid_until !== null) {
             $validUntil = $this->valid_until;
             // Ensure we have a Carbon instance
-            if (!($validUntil instanceof \Carbon\Carbon)) {
+            if (! ($validUntil instanceof \Carbon\Carbon)) {
                 $validUntil = \Carbon\Carbon::parse($validUntil);
             }
-            
+
             // Check if current time is after the valid_until date/time (exclusive)
             // If now > validUntil, voucher has expired
             if ($now->gt($validUntil)) {
@@ -257,6 +276,41 @@ class AdminVoucher extends Model implements HasMedia
         }
 
         return null; // Valid
+    }
+
+    /**
+     * Status reason when a claimed admin voucher cannot be redeemed.
+     * Does not include Usage Limit Reached (claim inventory only).
+     */
+    public function getRedeemStatusReason(): ?string
+    {
+        if (! $this->is_active) {
+            return 'Inactive';
+        }
+
+        $now = now();
+
+        if ($this->valid_from !== null) {
+            $validFrom = $this->valid_from instanceof \Carbon\Carbon
+                ? $this->valid_from
+                : \Carbon\Carbon::parse($this->valid_from);
+
+            if ($now->lt($validFrom)) {
+                return 'Not Yet Valid';
+            }
+        }
+
+        if ($this->valid_until !== null) {
+            $validUntil = $this->valid_until instanceof \Carbon\Carbon
+                ? $this->valid_until
+                : \Carbon\Carbon::parse($this->valid_until);
+
+            if ($now->gt($validUntil)) {
+                return 'Expired';
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -306,7 +360,28 @@ class AdminVoucher extends Model implements HasMedia
     }
 
     /**
-     * Admin list grouping key: active, pending, or expired.
+     * Whether the voucher has a start date that has not been reached yet.
+     */
+    public function isNotYetStarted(): bool
+    {
+        if ($this->valid_from === null) {
+            return false;
+        }
+
+        $validFrom = $this->valid_from instanceof \Carbon\Carbon
+            ? $this->valid_from
+            : \Carbon\Carbon::parse($this->valid_from);
+
+        return now()->lt($validFrom);
+    }
+
+    /**
+     * List grouping key: active, pending, not_yet_valid, or expired.
+     *
+     * - Expired: past the validity end date (any activation status)
+     * - Pending: not yet activated and not expired (including future start dates)
+     * - Not yet valid: activated, but the start date has not been reached
+     * - Active: activated and currently within the validity window
      */
     public function getListStatusGroup(): string
     {
@@ -314,11 +389,15 @@ class AdminVoucher extends Model implements HasMedia
             return 'expired';
         }
 
-        if ($this->isWithinValidityDate()) {
-            return $this->is_active ? 'active' : 'pending';
+        if (! $this->is_active) {
+            return 'pending';
         }
 
-        return 'expired';
+        if ($this->isNotYetStarted()) {
+            return 'not_yet_valid';
+        }
+
+        return 'active';
     }
 
     public function getDisplayStatusCategory(): string
@@ -326,19 +405,17 @@ class AdminVoucher extends Model implements HasMedia
         return match ($this->getListStatusGroup()) {
             'active' => 'active',
             'pending' => 'pending_approval',
+            'not_yet_valid' => 'not_yet_valid',
             default => 'expired',
         };
     }
 
     public function getDisplayStatusLabel(): string
     {
-        if ($this->getDisplayStatusCategory() === 'expired' && $this->getStatusReason() === 'Not Yet Valid') {
-            return 'Not Yet Valid';
-        }
-
         return match ($this->getDisplayStatusCategory()) {
             'active' => 'Active',
             'pending_approval' => 'Pending Approval',
+            'not_yet_valid' => 'Not Yet Valid',
             'expired' => 'Expired',
         };
     }
@@ -348,7 +425,8 @@ class AdminVoucher extends Model implements HasMedia
         return match ($this->getListStatusGroup()) {
             'active' => 1,
             'pending' => 2,
-            'expired' => 3,
+            'not_yet_valid' => 3,
+            'expired' => 4,
         };
     }
 
@@ -365,6 +443,7 @@ class AdminVoucher extends Model implements HasMedia
     public function getImageUrlAttribute(): ?string
     {
         $media = $this->getFirstMedia('image');
+
         return $media ? $media->getUrl() : null;
     }
 }
