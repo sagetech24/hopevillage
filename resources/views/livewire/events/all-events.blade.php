@@ -5,11 +5,61 @@
                 <h2 class="font-semibold md:text-xl text-2xl text-gray-800 leading-tight">
                     {{ __('Events') }}
                 </h2>
-                <div class="flex flex-wrap items-center gap-2">
+                {{-- <div class="flex flex-wrap items-center gap-2">
                     <a href="{{ route('admin.locations.index') }}" class="text-sm bg-slate-600 hover:bg-slate-700 text-white transition-all duration-300 py-2 px-3 rounded-full font-medium hover:text-slate-100">
                         {{ __('View Locations') }}
                     </a>
-                </div>
+                </div> --}}
+                @can('event.create')
+                    @php($defaultLocation = $locations->first())
+                    @if ($defaultLocation)
+                        <div
+                            class="relative inline-flex"
+                            x-data="{
+                                open: false,
+                                locationCode: @js($defaultLocation->location_code),
+                                locationName: @js($defaultLocation->name),
+                            }"
+                            @click.away="open = false"
+                        >
+                            <a
+                                :href="'/admin/locations/' + locationCode + '/events/create'"
+                                class="lg:w-70 md:w-64 w-70 flex items-center gap-1 text-sm bg-orange-600 hover:bg-orange-700 text-white transition-all duration-300 py-2 pl-3 pr-2 rounded-l-full font-medium hover:text-orange-200"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                                <span class="truncate">{{ __('Add new event') }} to <span x-text="locationName">{{ $defaultLocation->name }}</span></span>
+                            </a>
+                            <button
+                                type="button"
+                                @click="open = !open"
+                                class="flex items-center border-l border-orange-500 bg-orange-600 hover:bg-orange-700 text-white py-2 px-2 rounded-r-full"
+                                aria-label="{{ __('Choose location') }}"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                </svg>
+                            </button>
+                            <div
+                                x-show="open"
+                                x-transition
+                                class="absolute right-0 top-full z-50 mt-2 w-64 max-h-72 overflow-y-auto rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5"
+                                style="display: none;"
+                            >
+                                @foreach ($locations as $addLocation)
+                                    <a
+                                        href="{{ route('admin.locations.events.create', $addLocation->location_code) }}"
+                                        class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                                        :class="locationCode === @js($addLocation->location_code) ? 'bg-orange-50 font-semibold text-orange-700' : ''"
+                                    >
+                                        {{ $addLocation->name }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+                @endcan
             </div>
         </div>
     </x-slot>
@@ -308,9 +358,9 @@
                                         @endif
                                     </div>
                                 </div>
-                                <p>
+                                <p class="flex items-start gap-1">
                                     <span class="text-sm text-gray-500">{{ __('Location') }}: </span>
-                                    <span class="text-orange-600 text-sm font-bold">{{ $event->location?->name ?: __('N/A') }}</span>
+                                    <span class="text-orange-600 text-sm font-bold truncate">{{ $event->location?->name ?: __('N/A') }}</span>
                                 </p>
                                 <p>
                                     <span class="text-sm text-gray-500">{{ __('Date') }}: </span>
@@ -333,6 +383,7 @@
                                         @endif
                                     </span>
                                 </p>
+                                <br />
                                 <div class="mt-auto flex flex-wrap gap-2 border-t border-gray-200 pt-2">
                                     @if ($event->trashed())
                                         @can('event.delete')
