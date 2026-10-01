@@ -24,16 +24,30 @@
     </style>
 </head>
 <body>
+    @php
+        $issuerAddress = trim(implode(', ', array_filter([
+            $merchant?->address,
+            $merchant?->city,
+            $merchant?->province,
+            $merchant?->postal_code,
+        ])));
+        $issuerContact = collect([$merchant?->phone, $merchant?->email])->filter()->implode(' · ');
+    @endphp
     <table class="header-table">
         <tr>
-            <td style="width: 90px;">
-                @if (!empty($logoSrc))
-                    <img src="{{ $logoSrc }}" width="75" height="67" alt="Hope Village">
-                @endif
-            </td>
+            @if (!empty($logoSrc))
+                <td style="width: 90px;">
+                    <img src="{{ $logoSrc }}" width="75" height="67" alt="{{ $merchant?->name ?? 'Merchant' }}">
+                </td>
+            @endif
             <td>
-                <p class="org-name">Hope Village Kaki Bukit Recreation Centre</p>
-                <p class="org-addr">7 Kaki Bukit Ave 3, #01-110, Singapore 415814</p>
+                <p class="org-name">{{ $merchant?->name ?? '—' }}</p>
+                @if ($issuerAddress !== '')
+                    <p class="org-addr">{{ $issuerAddress }}</p>
+                @endif
+                @if ($issuerContact !== '')
+                    <p class="org-addr">{{ $issuerContact }}</p>
+                @endif
             </td>
         </tr>
     </table>

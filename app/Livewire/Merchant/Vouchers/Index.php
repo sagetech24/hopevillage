@@ -8,6 +8,7 @@ use App\Models\AdminVoucherReimbursement;
 use App\Models\Merchant;
 use App\Models\Voucher;
 use App\Services\QrCodeService;
+use App\Support\MemberNameMask;
 use Illuminate\Support\Collection;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -406,7 +407,7 @@ class Index extends Component
             ->get()
             ->map(function ($user) use ($costPerVoucher) {
                 return [
-                    'name' => $user->name,
+                    'name' => MemberNameMask::mask($user->name),
                     'qr_code' => $user->qr_code,
                     'redeemed_at' => $user->pivot->redeemed_at,
                     'amount' => $costPerVoucher,

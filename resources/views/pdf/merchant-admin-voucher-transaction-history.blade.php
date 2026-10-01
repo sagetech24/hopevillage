@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Transaction History - {{ $entry->adminVoucher?->name ?? 'Admin Voucher' }}</title>
+    <title>Transaction History - {{ $voucher->name ?? 'Admin Voucher' }}</title>
     <style>
         @page { margin: 24px 28px; }
         body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #374151; }
@@ -45,28 +45,31 @@
     </table>
 
     <h1>Admin Voucher Transaction History</h1>
-    <br />
+
     <div class="meta">
-        <p><strong>Merchant:</strong> {{ $entry->merchant?->name ?? '—' }}</p>
-        <p><strong>Voucher:</strong> {{ $entry->adminVoucher?->name ?? '—' }} ({{ $entry->adminVoucher?->voucher_code ?? '—' }})</p>
-        <p><strong>Period:</strong> {{ $entry->period_month->format('F Y') }}</p>
-        <p><strong>Total Dispensed:</strong> SGD {{ number_format($entry->computedTotalDispensed(), 2) }}</p>
-        <p><strong>Total Reimbursed:</strong> SGD {{ number_format((float) $entry->total_reimbursed, 2) }}</p>
-        <p><strong>Outstanding Balance:</strong> SGD {{ number_format((float) $entry->outstanding_balance, 2) }}</p>
+        <p><strong>Merchant:</strong> {{ $merchant->name ?? '—' }}</p>
+        <p><strong>Voucher:</strong> {{ $voucher->name ?? '—' }} ({{ $voucher->voucher_code ?? '—' }})</p>
+        <p><strong>Validity:</strong>
+            @if($voucher->valid_from && $voucher->valid_until)
+                {{ $voucher->valid_from->format('d M Y') }} – {{ $voucher->valid_until->format('d M Y') }}
+            @else
+                {{ $voucher->valid_from?->format('d M Y') ?? $voucher->valid_until?->format('d M Y') ?? '—' }}
+            @endif
+        </p>
+        <p><strong>Redeemed at this store:</strong> {{ number_format($transactions->count()) }}</p>
+        <p><strong>Cost per voucher:</strong> SGD {{ number_format((float) $costPerVoucher, 2) }}</p>
+        <p><strong>Total amount:</strong> SGD {{ number_format((float) $totalAmount, 2) }}</p>
     </div>
 
     <h2>Voucher Redemption Transactions</h2>
-    <br />
+
     @if ($transactions->isEmpty())
-        <div class="no-data">No transactions found for this period.</div>
+        <div class="no-data">No transactions found for this voucher.</div>
     @else
-        @php
-            $transactionTotal = (float) $transactions->sum('amount_cost');
-        @endphp
         @foreach ($transactions->chunk(80) as $chunk)
             <table class="data chunk">
                 <colgroup>
-                    <col style="width: 8%;">
+                    <col style="width: 3%;">
                     <col style="width: 32%;">
                     <col style="width: 22%;">
                     <col style="width: 22%;">
@@ -89,8 +92,8 @@
                             <td>{{ $tx->row_number }}</td>
                             <td>{{ $tx->member_name ?? '—' }}</td>
                             <td>{{ $tx->member_code ?? '—' }}</td>
-                            <td>{{ \Carbon\Carbon::parse($tx->redeemed_at)->format('M d, Y H:i') }}</td>
-                            <td class="num">SGD {{ number_format((float) $tx->amount_cost, 2) }}</td>
+                            <td>{{ $tx->redeemed_at ? \Carbon\Carbon::parse($tx->redeemed_at)->format('M d, Y H:i') : '—' }}</td>
+                            <td class="num">SGD {{ number_format((float) $tx->amount, 2) }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -98,48 +101,12 @@
                     <tfoot>
                         <tr>
                             <td colspan="4" class="num total">Total:</td>
-                            <td class="num total">SGD {{ number_format($transactionTotal, 2) }}</td>
+                            <td class="num total">SGD {{ number_format((float) $totalAmount, 2) }}</td>
                         </tr>
                     </tfoot>
                 @endif
             </table>
         @endforeach
-    @endif
-
-    @if ($reimbursements->isNotEmpty())
-        <h2 style="font-size: 14px; margin-top: 20px;">Voucher Reimbursement Transactions</h2>
-        <table class="data">
-            <colgroup>
-                <col style="width: 8%;">
-                <col style="width: 28%;">
-                <col style="width: 44%;">
-                <col style="width: 20%;">
-            </colgroup>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Reimbursed At</th>
-                    <th>Notes</th>
-                    <th class="num">Amount</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($reimbursements as $index => $reimbursement)
-                    <tr>
-                        <td>{{ $index + 1 }}</td>
-                        <td>{{ \Carbon\Carbon::parse($reimbursement->reimbursed_at)->format('M d, Y') }}</td>
-                        <td>{{ $reimbursement->notes ?? '—' }}</td>
-                        <td class="num">SGD {{ number_format((float) $reimbursement->amount, 2) }}</td>
-                    </tr>
-                @endforeach
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="3" class="num total">Total:</td>
-                    <td class="num total">SGD {{ number_format((float) $reimbursements->sum('amount'), 2) }}</td>
-                </tr>
-            </tfoot>
-        </table>
     @endif
 </body>
 </html>

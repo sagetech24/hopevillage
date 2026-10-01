@@ -525,9 +525,124 @@ class MerchantVouchersIndexTest extends TestCase
             ->call('openAdminTransactions', $adminVoucher->voucher_code)
             ->assertSee('View Transaction History')
             ->assertSee('Transit Pass')
-            ->assertSee('Amina Store Member')
+            ->assertSee('Amin**** Stor**** Memb****')
+            ->assertDontSee('Amina Store Member')
             ->assertSee('15.00')
+            ->assertSee('Transaction History')
+            ->assertSee(route('merchant.vouchers.admin-transaction-history-pdf', $adminVoucher->voucher_code), false)
             ->assertDontSee('Elsewhere Member');
+    }
+
+    public function test_merchant_can_print_admin_voucher_transaction_history_pdf_for_this_store(): void
+    {
+        [$user, $merchant] = $this->actingMerchant();
+
+        $admin = User::factory()->create([
+            'user_type' => 'admin',
+        ]);
+
+        $adminVoucher = AdminVoucher::query()->create([
+            'voucher_code' => 'AVOU-TXPDF',
+            'name' => 'Transit Pass',
+            'points_cost' => 10,
+            'amount_cost' => 1.50,
+            'is_active' => true,
+            'valid_from' => now()->subDay(),
+            'valid_until' => now()->addMonth(),
+            'created_by' => $admin->id,
+        ]);
+        $adminVoucher->merchants()->attach($merchant->id);
+
+        $otherMerchant = Merchant::query()->create([
+            'name' => 'Other Store',
+            'is_active' => true,
+        ]);
+
+        $redeemedHereMember = User::factory()->create([
+            'user_type' => 'member',
+            'name' => 'Amina Store Member',
+            'qr_code' => 'HV-AMINA',
+        ]);
+        $redeemedElsewhereMember = User::factory()->create([
+            'user_type' => 'member',
+            'name' => 'Elsewhere Member',
+            'qr_code' => 'HV-ELSE',
+        ]);
+
+        $redeemedHereMember->adminVouchers()->attach($adminVoucher->id, [
+            'status' => 'redeemed',
+            'claimed_at' => now()->subDay(),
+            'redeemed_at' => now()->subMinutes(20),
+            'redeemed_at_merchant_id' => $merchant->id,
+        ]);
+        $redeemedElsewhereMember->adminVouchers()->attach($adminVoucher->id, [
+            'status' => 'redeemed',
+            'claimed_at' => now()->subDay(),
+            'redeemed_at' => now()->subMinutes(5),
+            'redeemed_at_merchant_id' => $otherMerchant->id,
+        ]);
+
+        $this->actingAs($user);
+
+        $response = $this->get(route('merchant.vouchers.admin-transaction-history-pdf', $adminVoucher->voucher_code));
+
+        $response->assertOk();
+        $this->assertStringContainsString('application/pdf', (string) $response->headers->get('content-type'));
+        $this->assertStringContainsString(
+            'transaction-history-kampong-grocer-transit-pass.pdf',
+            (string) $response->headers->get('content-disposition')
+        );
+
+        $html = view('pdf.merchant-admin-voucher-transaction-history', [
+            'merchant' => $merchant,
+            'voucher' => $adminVoucher,
+            'transactions' => collect([
+                (object) [
+                    'row_number' => 1,
+                    'member_name' => 'Amin**** Stor**** Memb****',
+                    'member_code' => 'HV-AMINA',
+                    'redeemed_at' => now()->subMinutes(20),
+                    'amount' => 15.00,
+                ],
+            ]),
+            'costPerVoucher' => 15.00,
+            'totalAmount' => 15.00,
+            'logoSrc' => null,
+        ])->render();
+
+        $this->assertStringContainsString('Amin**** Stor**** Memb****', $html);
+        $this->assertStringNotContainsString('Amina Store Member', $html);
+        $this->assertStringContainsString('HV-AMINA', $html);
+        $this->assertStringContainsString('$15.00', $html);
+        $this->assertStringNotContainsString('Elsewhere Member', $html);
+    }
+
+    public function test_merchant_cannot_print_transaction_history_pdf_for_unassigned_voucher(): void
+    {
+        [$user] = $this->actingMerchant();
+
+        $admin = User::factory()->create([
+            'user_type' => 'admin',
+        ]);
+        $otherMerchant = Merchant::query()->create([
+            'name' => 'Other Store',
+            'is_active' => true,
+        ]);
+        $adminVoucher = AdminVoucher::query()->create([
+            'voucher_code' => 'AVOU-OTHERTX',
+            'name' => 'Other Store Voucher',
+            'points_cost' => 10,
+            'amount_cost' => 1.00,
+            'is_active' => true,
+            'valid_from' => now()->subDay(),
+            'valid_until' => now()->addMonth(),
+            'created_by' => $admin->id,
+        ]);
+        $adminVoucher->merchants()->attach($otherMerchant->id);
+
+        $this->actingAs($user)
+            ->get(route('merchant.vouchers.admin-transaction-history-pdf', $adminVoucher->voucher_code))
+            ->assertNotFound();
     }
 
     public function test_non_merchant_user_cannot_access_vouchers_index(): void
@@ -549,6 +664,17 @@ class MerchantVouchersIndexTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('merchant.vouchers.admin-reimbursements-pdf', 'AVOU-REIMBPDF'))
+            ->assertForbidden();
+    }
+
+    public function test_non_merchant_user_cannot_print_admin_voucher_transaction_history_pdf(): void
+    {
+        $user = User::factory()->create([
+            'user_type' => 'member',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('merchant.vouchers.admin-transaction-history-pdf', 'AVOU-TXPDF'))
             ->assertForbidden();
     }
 }

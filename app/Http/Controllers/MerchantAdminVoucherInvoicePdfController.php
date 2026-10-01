@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Merchant;
 use App\Models\MerchantAdminVoucherInvoice;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -23,7 +24,7 @@ class MerchantAdminVoucherInvoicePdfController extends Controller
         $pdf = Pdf::loadView('pdf.merchant-admin-voucher-invoice', [
             'invoice' => $invoice,
             'merchant' => $invoice->merchant,
-            'logoSrc' => $this->logoDataUri(),
+            'logoSrc' => $this->merchantLogoDataUri($invoice->merchant),
         ])->setPaper('a4', 'portrait');
 
         $filename = sprintf(
@@ -34,14 +35,24 @@ class MerchantAdminVoucherInvoicePdfController extends Controller
         return $pdf->stream($filename);
     }
 
-    private function logoDataUri(): ?string
+    private function merchantLogoDataUri(?Merchant $merchant): ?string
     {
-        $path = public_path('hv-logo.png');
+        $media = $merchant?->getFirstMedia('logo');
 
+        if (! $media) {
+            return null;
+        }
+
+        $mime = (string) $media->mime_type;
+        if (! in_array($mime, ['image/jpeg', 'image/png', 'image/gif'], true)) {
+            return null;
+        }
+
+        $path = $media->getPath();
         if (! is_file($path)) {
             return null;
         }
 
-        return 'data:image/png;base64,'.base64_encode((string) file_get_contents($path));
+        return 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($path));
     }
 }

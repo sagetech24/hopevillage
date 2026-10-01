@@ -273,6 +273,8 @@ Route::middleware([
     Route::get('/merchant/vouchers/create', \App\Livewire\Merchant\Vouchers\Form::class)->name('merchant.vouchers.create');
     Route::get('/merchant/vouchers/admin/{voucher_code}/reimbursements-pdf', \App\Http\Controllers\MerchantAdminVoucherReimbursementPdfController::class)
         ->name('merchant.vouchers.admin-reimbursements-pdf');
+    Route::get('/merchant/vouchers/admin/{voucher_code}/transaction-history-pdf', \App\Http\Controllers\MerchantAdminVoucherTransactionHistoryPdfController::class)
+        ->name('merchant.vouchers.admin-transaction-history-pdf');
     Route::get('/merchant/vouchers/{voucher_code}/edit', \App\Livewire\Merchant\Vouchers\Form::class)->name('merchant.vouchers.edit');
     Route::get('/merchant/vouchers/{voucher_code}', \App\Livewire\Merchant\Vouchers\Profile::class)->name('merchant.vouchers.profile');
 

@@ -326,6 +326,10 @@ class MerchantReimbursementsIndexTest extends TestCase
         Livewire::test(Index::class)
             ->assertSee('August Meal')
             ->assertSee('Paused Meal')
+            ->assertSee('Generate Invoice')
+            ->assertSee('Transaction History')
+            ->assertSee(route('merchant.vouchers.admin-transaction-history-pdf', $expired->voucher_code), false)
+            ->assertSee(route('merchant.vouchers.admin-transaction-history-pdf', $inactive->voucher_code), false)
             ->assertSee('No redemptions to invoice')
             ->assertDontSee('Still Running Voucher')
             ->assertDontSee('Other Store Meal');
@@ -460,9 +464,88 @@ class MerchantReimbursementsIndexTest extends TestCase
         ], $reused->bank_account);
     }
 
+    public function test_merchant_can_edit_saved_bank_details(): void
+    {
+        [$user, $merchant] = $this->actingMerchant();
+        [$otherUser, $otherMerchant] = $this->actingMerchant();
+        $admin = User::factory()->create(['user_type' => 'admin']);
+        $first = $this->finishedVoucher($admin, $merchant, 'Editable Bank Meal', 'AVOU-BANK-EDIT');
+        $second = $this->finishedVoucher($admin, $merchant, 'Next Bank Meal', 'AVOU-BANK-NEXT');
+        $otherVoucher = $this->finishedVoucher($admin, $otherMerchant, 'Other Store Meal', 'AVOU-BANK-OTHER');
+        $this->redeem($first, $merchant, 1);
+        $this->redeem($second, $merchant, 1);
+        $this->redeem($otherVoucher, $otherMerchant, 1);
+
+        $this->actingAs($user);
+        Livewire::test(Index::class)
+            ->call('openInvoiceModal', $first->id)
+            ->set('bankName', 'DBS')
+            ->set('accountName', 'Kampong Grocer')
+            ->set('accountNumber', '123-456')
+            ->call('saveInvoice')
+            ->assertHasNoErrors();
+
+        $this->actingAs($otherUser);
+        Livewire::test(Index::class)
+            ->call('openInvoiceModal', $otherVoucher->id)
+            ->set('bankName', 'DBS')
+            ->set('accountName', 'Kampong Grocer')
+            ->set('accountNumber', '123-456')
+            ->call('saveInvoice')
+            ->assertHasNoErrors();
+
+        $this->actingAs($user);
+        Livewire::test(Index::class)
+            ->call('openInvoiceModal', $second->id)
+            ->call('setBankDetailsMode', 'saved')
+            ->assertSee('Edit saved bank details')
+            ->call('editSavedBank', 'dbs|kampong grocer|123-456')
+            ->assertSet('editBankName', 'DBS')
+            ->set('editBankName', '')
+            ->call('updateSavedBank')
+            ->assertHasErrors(['editBankName'])
+            ->set('editBankName', 'OCBC')
+            ->set('editAccountName', 'Kampong Grocer Pte Ltd')
+            ->set('editAccountNumber', '987-654')
+            ->call('updateSavedBank')
+            ->assertHasNoErrors()
+            ->assertSet('editingSavedBankKey', '')
+            ->assertSet('selectedSavedBank', 'ocbc|kampong grocer pte ltd|987-654')
+            ->assertSee('OCBC')
+            ->assertSee('987-654')
+            ->assertDontSee('123-456')
+            ->call('saveInvoice')
+            ->assertHasNoErrors();
+
+        $this->assertSame([
+            'bank_name' => 'OCBC',
+            'account_name' => 'Kampong Grocer Pte Ltd',
+            'account_number' => '987-654',
+        ], MerchantAdminVoucherInvoice::query()->where('merchant_id', $merchant->id)->orderBy('id')->first()->bank_account);
+
+        $this->assertSame([
+            'bank_name' => 'OCBC',
+            'account_name' => 'Kampong Grocer Pte Ltd',
+            'account_number' => '987-654',
+        ], MerchantAdminVoucherInvoice::query()->where('admin_voucher_id', $second->id)->first()->bank_account);
+
+        $this->assertSame([
+            'bank_name' => 'DBS',
+            'account_name' => 'Kampong Grocer',
+            'account_number' => '123-456',
+        ], MerchantAdminVoucherInvoice::query()->where('merchant_id', $otherMerchant->id)->first()->bank_account);
+    }
+
     public function test_invoice_pdf_is_limited_to_the_store_and_visible_to_admin(): void
     {
         [$user, $merchant] = $this->actingMerchant();
+        $merchant->update([
+            'address' => '12 Market Street',
+            'city' => 'Singapore',
+            'postal_code' => '048980',
+            'phone' => '6123 4567',
+            'email' => 'hello@kampong.test',
+        ]);
         $user->update(['name' => 'Mina Merchant']);
         $admin = User::factory()->create([
             'user_type' => 'admin',
@@ -482,6 +565,19 @@ class MerchantReimbursementsIndexTest extends TestCase
             ->call('saveInvoice');
 
         $invoice = MerchantAdminVoucherInvoice::query()->firstOrFail();
+        $invoice->load(['merchant', 'generatedBy']);
+
+        $html = view('pdf.merchant-admin-voucher-invoice', [
+            'invoice' => $invoice,
+            'merchant' => $invoice->merchant,
+            'logoSrc' => null,
+        ])->render();
+
+        $this->assertStringContainsString('Kampong Grocer', $html);
+        $this->assertStringContainsString('12 Market Street, Singapore, 048980', $html);
+        $this->assertStringContainsString('6123 4567 · hello@kampong.test', $html);
+        $this->assertStringContainsString('class="org-name">Kampong Grocer', $html);
+        $this->assertStringNotContainsString('class="org-name">Hope Village', $html);
 
         $this->actingAs($user)
             ->get(route('merchant.admin-voucher-invoices.pdf', $invoice))

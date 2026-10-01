@@ -32,6 +32,14 @@ class Index extends Component
 
     public string $accountNumber = '';
 
+    public string $editingSavedBankKey = '';
+
+    public string $editBankName = '';
+
+    public string $editAccountName = '';
+
+    public string $editAccountNumber = '';
+
     protected $queryString = [
         'search' => ['except' => ''],
         'statusFilter' => ['except' => 'all'],
@@ -97,6 +105,7 @@ class Index extends Component
         }
 
         $this->bankDetailsMode = $mode;
+        $this->resetSavedBankEdit();
         $this->resetValidation();
     }
 
@@ -122,6 +131,7 @@ class Index extends Component
         $this->bankName = '';
         $this->accountName = '';
         $this->accountNumber = '';
+        $this->resetSavedBankEdit();
         $this->showInvoiceModal = true;
         $this->resetValidation();
     }
@@ -136,6 +146,84 @@ class Index extends Component
         $this->bankName = '';
         $this->accountName = '';
         $this->accountNumber = '';
+        $this->resetSavedBankEdit();
+        $this->resetValidation();
+    }
+
+    public function editSavedBank(string $key): void
+    {
+        $merchant = auth()->user()?->currentMerchant();
+        if (! $merchant) {
+            return;
+        }
+
+        $saved = $this->savedBankAccounts($merchant)->firstWhere('key', $key);
+        if ($saved === null) {
+            return;
+        }
+
+        $this->editingSavedBankKey = $key;
+        $this->selectedSavedBank = $key;
+        $this->editBankName = $saved['bank_name'];
+        $this->editAccountName = $saved['account_name'];
+        $this->editAccountNumber = $saved['account_number'];
+        $this->resetValidation();
+    }
+
+    public function cancelSavedBankEdit(): void
+    {
+        $this->resetSavedBankEdit();
+        $this->resetValidation();
+    }
+
+    public function updateSavedBank(): void
+    {
+        $merchant = auth()->user()?->currentMerchant();
+        if (! $merchant || $this->editingSavedBankKey === '') {
+            return;
+        }
+
+        $saved = $this->savedBankAccounts($merchant)->firstWhere('key', $this->editingSavedBankKey);
+        if ($saved === null) {
+            $this->cancelSavedBankEdit();
+
+            return;
+        }
+
+        $this->editBankName = trim($this->editBankName);
+        $this->editAccountName = trim($this->editAccountName);
+        $this->editAccountNumber = trim($this->editAccountNumber);
+
+        $this->validate([
+            'editBankName' => ['required', 'string', 'max:120'],
+            'editAccountName' => ['required', 'string', 'max:120'],
+            'editAccountNumber' => ['required', 'string', 'max:50'],
+        ], [], [
+            'editBankName' => 'bank name',
+            'editAccountName' => 'account name',
+            'editAccountNumber' => 'account number',
+        ]);
+
+        $updated = [
+            'bank_name' => $this->editBankName,
+            'account_name' => $this->editAccountName,
+            'account_number' => $this->editAccountNumber,
+        ];
+
+        MerchantAdminVoucherInvoice::query()
+            ->where('merchant_id', $merchant->id)
+            ->get()
+            ->each(function (MerchantAdminVoucherInvoice $invoice) use ($saved, $updated) {
+                $bank = $this->normalizedBank($invoice->bank_account ?? []);
+                if ($bank === null || $this->bankAccountKey($bank) !== $saved['key']) {
+                    return;
+                }
+
+                $invoice->update(['bank_account' => $updated]);
+            });
+
+        $this->selectedSavedBank = $this->bankAccountKey($updated);
+        $this->resetSavedBankEdit();
         $this->resetValidation();
     }
 
@@ -209,19 +297,38 @@ class Index extends Component
             ->orderByDesc('generated_at')
             ->orderByDesc('id')
             ->get()
-            ->map(function (MerchantAdminVoucherInvoice $invoice) {
-                $bank = $invoice->bank_account ?? [];
-
-                return [
-                    'bank_name' => trim((string) ($bank['bank_name'] ?? '')),
-                    'account_name' => trim((string) ($bank['account_name'] ?? '')),
-                    'account_number' => trim((string) ($bank['account_number'] ?? '')),
-                ];
-            })
-            ->filter(fn (array $bank) => $bank['bank_name'] !== '' && $bank['account_name'] !== '' && $bank['account_number'] !== '')
+            ->map(fn (MerchantAdminVoucherInvoice $invoice) => $this->normalizedBank($invoice->bank_account ?? []))
+            ->filter()
             ->unique(fn (array $bank) => $this->bankAccountKey($bank))
             ->map(fn (array $bank) => $bank + ['key' => $this->bankAccountKey($bank)])
             ->values();
+    }
+
+    /**
+     * @param  array<string, mixed>  $bank
+     * @return array{bank_name: string, account_name: string, account_number: string}|null
+     */
+    private function normalizedBank(array $bank): ?array
+    {
+        $normalized = [
+            'bank_name' => trim((string) ($bank['bank_name'] ?? '')),
+            'account_name' => trim((string) ($bank['account_name'] ?? '')),
+            'account_number' => trim((string) ($bank['account_number'] ?? '')),
+        ];
+
+        if ($normalized['bank_name'] === '' || $normalized['account_name'] === '' || $normalized['account_number'] === '') {
+            return null;
+        }
+
+        return $normalized;
+    }
+
+    private function resetSavedBankEdit(): void
+    {
+        $this->editingSavedBankKey = '';
+        $this->editBankName = '';
+        $this->editAccountName = '';
+        $this->editAccountNumber = '';
     }
 
     /**

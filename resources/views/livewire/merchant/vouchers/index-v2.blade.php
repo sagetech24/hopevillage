@@ -527,9 +527,9 @@
                                             </div>
                                             {{-- <p class="text-sm text-slate-700 mt-0.5">{{ $adminValueText }}</p> --}}
                                             <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                                                <span>{{ number_format($claimedCount) }} claimed</span>
-                                                <span>{{ number_format($redeemedCount) }} redeemed</span>
-                                                <span>{{ number_format($redeemedHereCount) }} redeemed here</span>
+                                                <span>{{ number_format($claimedCount) }} Claimed</span>
+                                                {{-- <span>{{ number_format($redeemedCount) }} redeemed</span> --}}
+                                                <span>{{ number_format($redeemedHereCount) }} Redeemed</span>
                                             </div>
                                             <div class="mt-1.5 flex justify-between items-center gap-1.5">
                                                 @if($isFullyClaimed)
@@ -735,31 +735,16 @@
                     @endif
                 </dl>
 
-                <div class="mt-5 grid grid-cols-3 gap-2">
+                <div class="mt-5 grid grid-cols-2 gap-2">
                     <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-center">
                         <p class="text-lg font-bold text-slate-900 tabular-nums">{{ number_format($adminClaimedCount) }}</p>
-                        <p class="text-[11px] text-slate-500">Claimed</p>
-                        <p class="text-[10px] text-slate-400">Waiting to redeem</p>
-                    </div>
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-center">
-                        <p class="text-lg font-bold text-slate-900 tabular-nums">{{ number_format($adminRedeemedCount) }}</p>
-                        <p class="text-[11px] text-slate-500">Redeemed</p>
-                        <p class="text-[10px] text-slate-400">All stores</p>
+                        <p class="text-[11px] text-slate-500">Total Claimed</p>
                     </div>
                     <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-center">
                         <p class="text-lg font-bold text-slate-900 tabular-nums">{{ number_format($adminRedeemedHereCount) }}</p>
-                        <p class="text-[11px] text-slate-500">Redeemed here</p>
-                        <p class="text-[10px] text-slate-400">At this store</p>
+                        <p class="text-[11px] text-slate-500">Total Redeemed</p>
                     </div>
                 </div>
-
-                @if($adminMerchantNames->isNotEmpty())
-                    <div class="mt-5">
-                        <p class="text-xs uppercase tracking-wide text-slate-500">Redeemable at</p>
-                        <p class="mt-1 text-sm text-slate-900">{{ $adminMerchantNames->implode(', ') }}</p>
-                    </div>
-                @endif
-
                 <button
                     type="button"
                     wire:click="closeAdminVoucher"
@@ -807,11 +792,11 @@
                 <div class="mt-5 grid grid-cols-3 gap-2">
                     <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-center">
                         <p class="text-sm font-bold text-slate-900 tabular-nums">SGD {{ number_format($reimbDispensed, 2) }}</p>
-                        <p class="text-[11px] text-slate-500">Dispensed</p>
+                        <p class="text-[11px] text-slate-500">Total Redeemed</p>
                     </div>
                     <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-center">
                         <p class="text-sm font-bold text-slate-900 tabular-nums">SGD {{ number_format($reimbTotal, 2) }}</p>
-                        <p class="text-[11px] text-slate-500">Reimbursement</p>
+                        <p class="text-[11px] text-slate-500">Reimbursed</p>
                     </div>
                     <div class="rounded-xl border px-3 py-3 text-center {{ $reimbOutstanding > 0 ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50' }}">
                         <p class="text-sm font-bold tabular-nums {{ $reimbOutstanding > 0 ? 'text-red-700' : 'text-emerald-700' }}">SGD {{ number_format($reimbOutstanding, 2) }}</p>
@@ -946,13 +931,26 @@
                     @endif
                 </div>
 
-                <button
-                    type="button"
-                    wire:click="closeAdminTransactions"
-                    class="mt-5 w-full inline-flex items-center justify-center rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-semibold py-3 px-4 transition-colors"
-                >
-                    Close
-                </button>
+                <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <a
+                        href="{{ route('merchant.vouchers.admin-transaction-history-pdf', $txVoucher->voucher_code) }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex items-center justify-center gap-2 rounded-2xl bg-zinc-500 hover:bg-zinc-700 text-white font-semibold py-3 px-4 transition-colors"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a24.95 24.95 0 0 1 12.56 0m-12.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V6.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v.858m10.5 0V9.75m-10.5-2.517V9.75" />
+                        </svg>
+                        Transaction History
+                    </a>
+                    <button
+                        type="button"
+                        wire:click="closeAdminTransactions"
+                        class="inline-flex items-center justify-center rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-semibold py-3 px-4 transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
             </div>
         </div>
     @endif
