@@ -4,6 +4,7 @@ namespace App\Livewire\Merchant\Vouchers;
 
 use App\Models\Voucher;
 use App\Services\QrCodeService;
+use App\Support\MemberNameMask;
 use Livewire\Component;
 
 class Profile extends Component
@@ -44,8 +45,7 @@ class Profile extends Component
             ->map(function ($user) {
                 return [
                     'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
+                    'name' => MemberNameMask::mask($user->name),
                     'qr_code' => $user->qr_code,
                     'claimed_at' => $user->pivot->claimed_at,
                 ];
@@ -61,8 +61,7 @@ class Profile extends Component
             ->map(function ($user) {
                 return [
                     'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
+                    'name' => MemberNameMask::mask($user->name),
                     'qr_code' => $user->qr_code,
                     'claimed_at' => $user->pivot->claimed_at,
                     'redeemed_at' => $user->pivot->redeemed_at,

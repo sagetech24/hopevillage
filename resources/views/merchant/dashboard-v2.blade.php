@@ -82,6 +82,11 @@
                 ->concat($adminRecent)
                 ->sortByDesc('redeemed_at')
                 ->take(5)
+                ->map(function ($redemption) {
+                    $redemption->member_name = \App\Support\MemberNameMask::mask($redemption->member_name);
+
+                    return $redemption;
+                })
                 ->values();
         }
     @endphp

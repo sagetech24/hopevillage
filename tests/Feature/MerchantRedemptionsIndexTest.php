@@ -87,8 +87,9 @@ class MerchantRedemptionsIndexTest extends TestCase
         $this->actingAs($user)
             ->get(route('merchant.redemptions.index'))
             ->assertOk()
-            ->assertSee('Aisha Rahman')
-            ->assertSee('aisha@example.com')
+            ->assertSee('Aish**** Rahm****')
+            ->assertDontSee('Aisha Rahman')
+            ->assertDontSee('aisha@example.com')
             ->assertSee('Coffee Voucher')
             ->assertSee('VOU-COFFEE01')
             ->assertSee('20% off')
@@ -169,7 +170,8 @@ class MerchantRedemptionsIndexTest extends TestCase
         Livewire::test(Index::class)
             ->call('setTab', 'admin')
             ->assertSee('Hope Village Vouchers')
-            ->assertSee('Budi Santoso')
+            ->assertSee('B**** Sant****')
+            ->assertDontSee('Budi Santoso')
             ->assertSee('Volunteer Reward')
             ->assertSee('AVOU-MEAL001')
             ->assertSee('100 pts')
@@ -214,7 +216,8 @@ class MerchantRedemptionsIndexTest extends TestCase
 
         Livewire::test(Index::class)
             ->set('search', 'Nasi Lemak')
-            ->assertSee('Mei Ling')
+            ->assertSee('M**** L****')
+            ->assertDontSee('Mei Ling')
             ->assertSee('Nasi Lemak Combo')
             ->assertDontSee('Hidden Member');
     }

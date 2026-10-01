@@ -204,9 +204,6 @@
                                     <div class="flex items-start justify-between gap-3">
                                         <div class="min-w-0">
                                             <p class="font-semibold text-slate-900 truncate">{{ $redemption->member_name }}</p>
-                                            @if($redemption->member_email)
-                                                <p class="text-sm text-slate-600 truncate mt-0.5">{{ $redemption->member_email }}</p>
-                                            @endif
                                             @if($redemption->member_qr_code)
                                                 <p class="text-[11px] text-slate-400 font-mono mt-1">{{ $redemption->member_qr_code }}</p>
                                             @endif
@@ -335,7 +332,7 @@
                                                                     </span>
                                                                 </div>
 
-                                                                <p class="mt-2 font-semibold text-slate-900 text-sm sm:text-lg leading-tight capitalize">{{ $redemption->member_name }}</p>
+                                                                <p class="mt-2 font-semibold text-slate-900 text-sm sm:text-lg leading-tight">{{ $redemption->member_name }}</p>
                                                                 @if($redemption->member_qr_code)
                                                                     <p class="text-[11px] text-slate-400 font-mono mt-1">{{ $redemption->member_qr_code }}</p>
                                                                 @endif

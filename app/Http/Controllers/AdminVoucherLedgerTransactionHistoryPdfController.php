@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AdminVoucherLedgerEntry;
+use App\Support\MemberNameMask;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -46,6 +47,7 @@ class AdminVoucherLedgerTransactionHistoryPdfController extends Controller
             ->values()
             ->map(function ($tx, int $index) {
                 $tx->row_number = $index + 1;
+                $tx->member_name = MemberNameMask::mask($tx->member_name ?? null);
 
                 return $tx;
             });

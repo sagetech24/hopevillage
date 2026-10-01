@@ -453,7 +453,6 @@
                                         <div class="flex items-start justify-between gap-3">
                                             <div class="min-w-0">
                                                 <p class="font-semibold text-slate-900 truncate">{{ $member['name'] }}</p>
-                                                <p class="text-sm text-slate-600 truncate mt-0.5">{{ $member['email'] }}</p>
                                                 @if($member['qr_code'])
                                                     <p class="text-[11px] text-slate-400 font-mono mt-1">{{ $member['qr_code'] }}</p>
                                                 @endif
@@ -486,7 +485,6 @@
                                         <div class="flex items-start justify-between gap-3">
                                             <div class="min-w-0">
                                                 <p class="font-semibold text-slate-900 truncate">{{ $member['name'] }}</p>
-                                                <p class="text-sm text-slate-600 truncate mt-0.5">{{ $member['email'] }}</p>
                                                 @if($member['qr_code'])
                                                     <p class="text-[11px] text-slate-400 font-mono mt-1">{{ $member['qr_code'] }}</p>
                                                 @endif

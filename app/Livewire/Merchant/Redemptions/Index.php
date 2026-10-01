@@ -3,6 +3,7 @@
 namespace App\Livewire\Merchant\Redemptions;
 
 use App\Models\Merchant;
+use App\Support\MemberNameMask;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -146,7 +147,9 @@ class Index extends Component
             return;
         }
 
-        $this->merchantRedemptions = $this->buildMerchantQuery($merchant)->get();
+        $this->merchantRedemptions = $this->maskMemberNames(
+            $this->buildMerchantQuery($merchant)->get()
+        );
     }
 
     private function loadAdminRedemptions(bool $reset = false): void
@@ -181,10 +184,12 @@ class Index extends Component
             return;
         }
 
-        $batch = $this->buildAdminQuery($merchant)
-            ->offset(($this->adminPage - 1) * self::ADMIN_PER_PAGE)
-            ->limit(self::ADMIN_PER_PAGE)
-            ->get();
+        $batch = $this->maskMemberNames(
+            $this->buildAdminQuery($merchant)
+                ->offset(($this->adminPage - 1) * self::ADMIN_PER_PAGE)
+                ->limit(self::ADMIN_PER_PAGE)
+                ->get()
+        );
 
         $this->adminRedemptions = ($this->adminRedemptions ?? collect())->concat($batch);
         $this->adminHasMore = $this->adminRedemptions->count() < $this->adminCount;
@@ -243,8 +248,6 @@ class Index extends Component
 
         if ($withSearch) {
             $this->applySearch($query, [
-                'users.name',
-                'users.email',
                 'vouchers.name',
                 'vouchers.voucher_code',
             ]);
@@ -253,7 +256,6 @@ class Index extends Component
         return $query
             ->select(
                 'users.name as member_name',
-                'users.email as member_email',
                 'users.qr_code as member_qr_code',
                 'vouchers.name as voucher_name',
                 'vouchers.voucher_code',
@@ -277,8 +279,6 @@ class Index extends Component
 
         if ($withSearch) {
             $this->applySearch($query, [
-                'users.name',
-                'users.email',
                 'admin_vouchers.name',
                 'admin_vouchers.voucher_code',
             ]);
@@ -287,7 +287,6 @@ class Index extends Component
         return $query
             ->select(
                 'users.name as member_name',
-                'users.email as member_email',
                 'users.qr_code as member_qr_code',
                 'admin_vouchers.name as voucher_name',
                 'admin_vouchers.voucher_code',
@@ -356,6 +355,15 @@ class Index extends Component
             'voucher_code' => 'admin_vouchers.voucher_code',
             default => 'user_admin_voucher.redeemed_at',
         };
+    }
+
+    private function maskMemberNames(Collection $rows): Collection
+    {
+        return $rows->map(function (object $row) {
+            $row->member_name = MemberNameMask::mask($row->member_name ?? null);
+
+            return $row;
+        });
     }
 
     public function render()
