@@ -133,4 +133,43 @@ class MerchantAdminVoucherInvoiceService
             ]);
         });
     }
+
+    /**
+     * Replace this store's invoice for a voucher. The previous invoice is deleted.
+     *
+     * A blank invoice number is assigned before the old row is removed, so the
+     * replacement does not reuse the deleted number.
+     *
+     * @param  array{bank_name: string, account_name: string, account_number: string}  $bankAccount
+     */
+    public function regenerate(
+        Merchant $merchant,
+        User $generatedBy,
+        int $adminVoucherId,
+        ?string $invoiceNumber,
+        array $bankAccount,
+    ): MerchantAdminVoucherInvoice {
+        return DB::transaction(function () use ($merchant, $generatedBy, $adminVoucherId, $invoiceNumber, $bankAccount) {
+            $existing = MerchantAdminVoucherInvoice::query()
+                ->where('merchant_id', $merchant->id)
+                ->where('admin_voucher_id', $adminVoucherId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing === null) {
+                throw ValidationException::withMessages([
+                    'invoiceNumber' => 'There is no invoice to replace for this voucher.',
+                ]);
+            }
+
+            $number = trim((string) $invoiceNumber);
+            if ($number === '') {
+                $number = MerchantAdminVoucherInvoice::nextInvoiceNumber();
+            }
+
+            $existing->delete();
+
+            return $this->create($merchant, $generatedBy, $adminVoucherId, $number, $bankAccount);
+        });
+    }
 }

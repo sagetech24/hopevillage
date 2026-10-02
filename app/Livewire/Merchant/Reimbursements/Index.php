@@ -20,6 +20,8 @@ class Index extends Component
 
     public ?int $selectedInvoiceVoucherId = null;
 
+    public ?int $replacingInvoiceId = null;
+
     public string $invoiceNumber = '';
 
     public string $bankDetailsMode = 'new';
@@ -125,6 +127,35 @@ class Index extends Component
         }
 
         $this->selectedInvoiceVoucherId = $adminVoucherId;
+        $this->replacingInvoiceId = null;
+        $this->invoiceNumber = '';
+        $this->bankDetailsMode = 'new';
+        $this->selectedSavedBank = '';
+        $this->bankName = '';
+        $this->accountName = '';
+        $this->accountNumber = '';
+        $this->resetSavedBankEdit();
+        $this->showInvoiceModal = true;
+        $this->resetValidation();
+    }
+
+    public function openRegenerateInvoiceModal(int $adminVoucherId): void
+    {
+        $merchant = auth()->user()?->currentMerchant();
+        if (! $merchant) {
+            return;
+        }
+
+        $row = app(MerchantAdminVoucherInvoiceService::class)
+            ->billableVouchers($merchant)
+            ->first(fn (array $item) => $item['voucher']->id === $adminVoucherId);
+
+        if ($row === null || $row['redeemed_count'] < 1 || $row['invoice'] === null) {
+            return;
+        }
+
+        $this->selectedInvoiceVoucherId = $adminVoucherId;
+        $this->replacingInvoiceId = $row['invoice']->id;
         $this->invoiceNumber = '';
         $this->bankDetailsMode = 'new';
         $this->selectedSavedBank = '';
@@ -140,6 +171,7 @@ class Index extends Component
     {
         $this->showInvoiceModal = false;
         $this->selectedInvoiceVoucherId = null;
+        $this->replacingInvoiceId = null;
         $this->invoiceNumber = '';
         $this->bankDetailsMode = 'new';
         $this->selectedSavedBank = '';
@@ -238,6 +270,21 @@ class Index extends Component
 
         $this->invoiceNumber = trim($this->invoiceNumber);
 
+        $replacingInvoice = null;
+        if ($this->replacingInvoiceId) {
+            $replacingInvoice = MerchantAdminVoucherInvoice::query()
+                ->whereKey($this->replacingInvoiceId)
+                ->where('merchant_id', $merchant->id)
+                ->where('admin_voucher_id', $this->selectedInvoiceVoucherId)
+                ->first();
+
+            if ($replacingInvoice === null) {
+                $this->addError('invoiceNumber', 'There is no invoice to replace for this voucher.');
+
+                return;
+            }
+        }
+
         if ($this->bankDetailsMode === 'saved') {
             $saved = $this->savedBankAccounts($merchant)->firstWhere('key', $this->selectedSavedBank);
             if ($saved === null) {
@@ -255,32 +302,32 @@ class Index extends Component
         $this->accountName = trim($this->accountName);
         $this->accountNumber = trim($this->accountNumber);
 
+        $invoiceNumberRule = Rule::unique('merchant_admin_voucher_invoices', 'invoice_number');
+        if ($replacingInvoice) {
+            $invoiceNumberRule->ignore($replacingInvoice->id);
+        }
+
         $this->validate([
             'invoiceNumber' => [
                 'nullable',
                 'string',
                 'max:50',
-                Rule::when(
-                    filled($this->invoiceNumber),
-                    Rule::unique('merchant_admin_voucher_invoices', 'invoice_number')
-                ),
+                Rule::when(filled($this->invoiceNumber), $invoiceNumberRule),
             ],
             'bankName' => ['required', 'string', 'max:120'],
             'accountName' => ['required', 'string', 'max:120'],
             'accountNumber' => ['required', 'string', 'max:50'],
         ]);
 
-        $invoice = $invoices->create(
-            $merchant,
-            $user,
-            $this->selectedInvoiceVoucherId,
-            $this->invoiceNumber,
-            [
-                'bank_name' => $this->bankName,
-                'account_name' => $this->accountName,
-                'account_number' => $this->accountNumber,
-            ],
-        );
+        $bankAccount = [
+            'bank_name' => $this->bankName,
+            'account_name' => $this->accountName,
+            'account_number' => $this->accountNumber,
+        ];
+
+        $invoice = $replacingInvoice
+            ? $invoices->regenerate($merchant, $user, $this->selectedInvoiceVoucherId, $this->invoiceNumber, $bankAccount)
+            : $invoices->create($merchant, $user, $this->selectedInvoiceVoucherId, $this->invoiceNumber, $bankAccount);
 
         $url = route('merchant.admin-voucher-invoices.pdf', $invoice);
         $this->closeInvoiceModal();

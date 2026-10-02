@@ -407,6 +407,109 @@ class MerchantReimbursementsIndexTest extends TestCase
         $this->assertSame(1, MerchantAdminVoucherInvoice::query()->count());
     }
 
+    public function test_merchant_can_regenerate_an_invoice_and_the_previous_one_is_deleted(): void
+    {
+        [$user, $merchant] = $this->actingMerchant();
+        $admin = User::factory()->create(['user_type' => 'admin']);
+        $first = $this->finishedVoucher($admin, $merchant, 'Replace Meal', 'AVOU-REPLACE');
+        $second = $this->finishedVoucher($admin, $merchant, 'Keep Meal', 'AVOU-KEEP');
+        $this->redeem($first, $merchant, 2);
+        $this->redeem($second, $merchant, 1);
+
+        $this->actingAs($user);
+
+        Livewire::test(Index::class)
+            ->call('openInvoiceModal', $first->id)
+            ->set('invoiceNumber', 'SHOP-99')
+            ->set('bankName', 'DBS')
+            ->set('accountName', 'Kampong Grocer')
+            ->set('accountNumber', '123-456')
+            ->call('saveInvoice')
+            ->assertHasNoErrors();
+
+        Livewire::test(Index::class)
+            ->call('openInvoiceModal', $second->id)
+            ->set('invoiceNumber', 'KEEP-1')
+            ->set('bankName', 'UOB')
+            ->set('accountName', 'Kampong Grocer')
+            ->set('accountNumber', '111')
+            ->call('saveInvoice')
+            ->assertHasNoErrors();
+
+        $original = MerchantAdminVoucherInvoice::query()->where('admin_voucher_id', $first->id)->firstOrFail();
+
+        Livewire::test(Index::class)
+            ->assertSee('Regenerate Invoice')
+            ->call('openRegenerateInvoiceModal', $first->id)
+            ->assertSet('showInvoiceModal', true)
+            ->assertSet('replacingInvoiceId', $original->id)
+            ->assertSee('The previous invoice')
+            ->assertSee('SHOP-99')
+            ->set('invoiceNumber', 'KEEP-1')
+            ->set('bankName', 'OCBC')
+            ->set('accountName', 'Kampong Grocer')
+            ->set('accountNumber', '999')
+            ->call('saveInvoice')
+            ->assertHasErrors(['invoiceNumber']);
+
+        $this->assertTrue($original->fresh()->exists);
+        $this->assertSame('SHOP-99', $original->fresh()->invoice_number);
+
+        Livewire::test(Index::class)
+            ->call('openRegenerateInvoiceModal', $first->id)
+            ->set('invoiceNumber', 'SHOP-100')
+            ->set('bankName', 'OCBC')
+            ->set('accountName', 'Kampong Grocer Pte Ltd')
+            ->set('accountNumber', '987-654')
+            ->call('saveInvoice')
+            ->assertHasNoErrors()
+            ->assertSee('Download invoice')
+            ->assertSee('SHOP-100')
+            ->assertDontSee('SHOP-99');
+
+        $this->assertNull(MerchantAdminVoucherInvoice::query()->find($original->id));
+        $this->assertSame(2, MerchantAdminVoucherInvoice::query()->count());
+
+        $replacement = MerchantAdminVoucherInvoice::query()->where('admin_voucher_id', $first->id)->firstOrFail();
+        $this->assertNotSame($original->id, $replacement->id);
+        $this->assertSame('SHOP-100', $replacement->invoice_number);
+        $this->assertSame(2, $replacement->redeemed_count);
+        $this->assertSame('20.00', $replacement->amount);
+        $this->assertSame([
+            'bank_name' => 'OCBC',
+            'account_name' => 'Kampong Grocer Pte Ltd',
+            'account_number' => '987-654',
+        ], $replacement->bank_account);
+        $this->assertSame('KEEP-1', MerchantAdminVoucherInvoice::query()->where('admin_voucher_id', $second->id)->first()->invoice_number);
+
+        Livewire::test(Index::class)
+            ->call('openRegenerateInvoiceModal', $first->id)
+            ->set('invoiceNumber', 'SHOP-100')
+            ->set('bankName', 'DBS')
+            ->set('accountName', 'Kampong Grocer')
+            ->set('accountNumber', '123-456')
+            ->call('saveInvoice')
+            ->assertHasNoErrors();
+
+        $reusedNumber = MerchantAdminVoucherInvoice::query()->where('admin_voucher_id', $first->id)->firstOrFail();
+        $this->assertNotSame($replacement->id, $reusedNumber->id);
+        $this->assertSame('SHOP-100', $reusedNumber->invoice_number);
+        $this->assertNull(MerchantAdminVoucherInvoice::query()->find($replacement->id));
+
+        Livewire::test(Index::class)
+            ->call('openRegenerateInvoiceModal', $first->id)
+            ->set('bankName', 'DBS')
+            ->set('accountName', 'Kampong Grocer')
+            ->set('accountNumber', '123-456')
+            ->call('saveInvoice')
+            ->assertHasNoErrors();
+
+        $autoNumbered = MerchantAdminVoucherInvoice::query()->where('admin_voucher_id', $first->id)->firstOrFail();
+        $this->assertSame('INV-'.now()->year.'-0001', $autoNumbered->invoice_number);
+        $this->assertNull(MerchantAdminVoucherInvoice::query()->find($reusedNumber->id));
+        $this->assertSame(2, MerchantAdminVoucherInvoice::query()->count());
+    }
+
     public function test_bank_account_fields_are_required(): void
     {
         [$user, $merchant] = $this->actingMerchant();

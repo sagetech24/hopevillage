@@ -203,6 +203,13 @@
                                         >
                                             Download invoice
                                         </a>
+                                        <button
+                                            type="button"
+                                            wire:click="openRegenerateInvoiceModal({{ $voucher->id }})"
+                                            class="inline-flex items-center gap-1.5 text-sm font-semibold text-orange-600 hover:text-orange-700"
+                                        >
+                                            Regenerate Invoice
+                                        </button>
                                     @elseif($row['redeemed_count'] > 0)
                                         <button
                                             type="button"
@@ -363,9 +370,12 @@
             <div class="flex min-h-full items-center justify-center p-4">
                 <div class="fixed inset-0 bg-gray-500/60" wire:click="closeInvoiceModal" aria-hidden="true"></div>
                 <div class="relative z-10 w-full max-w-lg rounded-2xl bg-white p-5 sm:p-6 shadow-xl">
-                    <h3 id="invoice-modal-title" class="text-lg font-bold text-slate-900">Generate Invoice</h3>
+                    <h3 id="invoice-modal-title" class="text-lg font-bold text-slate-900">{{ $replacingInvoiceId ? 'Regenerate Invoice' : 'Generate Invoice' }}</h3>
                     <p class="mt-1 text-sm text-slate-600">{{ $selectedBillable['voucher']->name }}</p>
                     <p class="mt-1 text-sm font-semibold text-orange-700">Amount to bill: SGD {{ number_format($selectedBillable['amount'], 2) }}</p>
+                    @if($replacingInvoiceId && $selectedBillable['invoice'])
+                        <p class="mt-2 text-sm text-slate-600">The previous invoice <span class="font-semibold text-slate-900">{{ $selectedBillable['invoice']->invoice_number }}</span> will be deleted when you generate the new one. Enter the invoice number and bank details again.</p>
+                    @endif
 
                     <form wire:submit="saveInvoice" class="mt-5 space-y-4">
                         <div>
@@ -512,7 +522,7 @@
                                 Cancel
                             </button>
                             <button type="submit" class="px-4 py-2 rounded-full text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600">
-                                Generate Invoice
+                                {{ $replacingInvoiceId ? 'Regenerate Invoice' : 'Generate Invoice' }}
                             </button>
                         </div>
                     </form>
