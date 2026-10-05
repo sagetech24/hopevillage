@@ -49,11 +49,20 @@
     <div class="meta">
         <p><strong>Merchant:</strong> {{ $merchant->name ?? '—' }}</p>
         <p><strong>Voucher:</strong> {{ $voucher->name ?? '—' }} ({{ $voucher->voucher_code ?? '—' }})</p>
-        <p><strong>Validity:</strong>
-            @if($voucher->valid_from && $voucher->valid_until)
-                {{ $voucher->valid_from->format('d M Y') }} – {{ $voucher->valid_until->format('d M Y') }}
+        <p><strong>Date covered:</strong>
+            @php
+                $coveredDates = $transactions
+                    ->map(fn ($tx) => $tx->redeemed_at ? \Carbon\Carbon::parse($tx->redeemed_at) : null)
+                    ->filter()
+                    ->sortBy(fn ($date) => $date->getTimestamp())
+                    ->values();
+                $coveredFrom = $coveredDates->first();
+                $coveredUntil = $coveredDates->last();
+            @endphp
+            @if ($coveredFrom && $coveredUntil && ! $coveredFrom->isSameDay($coveredUntil))
+                {{ $coveredFrom->format('d M Y') }} – {{ $coveredUntil->format('d M Y') }}
             @else
-                {{ $voucher->valid_from?->format('d M Y') ?? $voucher->valid_until?->format('d M Y') ?? '—' }}
+                {{ $coveredFrom?->format('d M Y') ?? '—' }}
             @endif
         </p>
         <p><strong>Redeemed at this store:</strong> {{ number_format($transactions->count()) }}</p>

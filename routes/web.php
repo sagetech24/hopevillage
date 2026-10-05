@@ -132,6 +132,8 @@ Route::middleware([
 
     Route::get('/admin/merchant-invoices/{invoice}/pdf', \App\Http\Controllers\MerchantAdminVoucherInvoicePdfController::class)
         ->name('admin.merchant-admin-voucher-invoices.pdf');
+    Route::get('/admin/merchant-invoices/{invoice}/transaction-history-pdf', \App\Http\Controllers\AdminMerchantVoucherTransactionHistoryPdfController::class)
+        ->name('admin.merchant-admin-voucher-invoices.transaction-history-pdf');
 
     // Point System CRUD Routes
     Route::get('/admin/point-system', \App\Livewire\PointSystem\Index::class)->name('admin.point-system.index');

@@ -696,12 +696,22 @@ class MerchantReimbursementsIndexTest extends TestCase
             ->get(route('admin.merchant-admin-voucher-invoices.pdf', $invoice))
             ->assertOk();
 
+        $this->actingAs($admin)
+            ->get(route('admin.merchant-admin-voucher-invoices.transaction-history-pdf', $invoice))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->actingAs($user)
+            ->get(route('admin.merchant-admin-voucher-invoices.transaction-history-pdf', $invoice))
+            ->assertForbidden();
+
         Livewire::actingAs($admin)
             ->test(AdminVoucherLedger::class)
             ->assertSee('PDF-1')
             ->assertSee('Kampong Grocer')
             ->assertSee('Mina Merchant')
-            ->assertSee('Pdf Meal');
+            ->assertSee('Pdf Meal')
+            ->assertSee(route('admin.merchant-admin-voucher-invoices.transaction-history-pdf', $invoice), false);
     }
 
     private function finishedVoucher(User $admin, Merchant $merchant, string $name, string $code): AdminVoucher

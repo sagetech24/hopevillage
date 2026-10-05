@@ -140,7 +140,7 @@
         @if ($invoices->isEmpty())
             <p class="px-4 py-6 text-sm text-gray-500">No merchant invoices submitted yet.</p>
         @else
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto max-h-[450px] overflow-y-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
@@ -165,15 +165,26 @@
                                 <td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{{ $invoice->validityLabel() }}</td>
                                 <td class="px-4 py-3 text-sm text-right font-semibold text-gray-900 whitespace-nowrap">SGD {{ number_format((float) $invoice->amount, 2) }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-600">{{ $invoice->generatedBy?->name ?? '—' }}</td>
-                                <td class="px-4 py-3 text-right">
-                                    <a
-                                        href="{{ route('admin.merchant-admin-voucher-invoices.pdf', $invoice) }}"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        class="text-sm font-semibold text-orange-600 hover:text-orange-700"
-                                    >
-                                        PDF
-                                    </a>
+                                <td class="px-4 py-3 text-right whitespace-nowrap">
+                                    <div class="inline-flex items-center justify-end gap-1">
+                                        <a
+                                            href="{{ route('admin.merchant-admin-voucher-invoices.pdf', $invoice) }}"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="text-sm font-semibold text-orange-600 hover:text-orange-700"
+                                        >
+                                            Invoice
+                                        </a>
+                                        |
+                                        <a
+                                            href="{{ route('admin.merchant-admin-voucher-invoices.transaction-history-pdf', $invoice) }}"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="text-sm font-semibold text-orange-600 hover:text-orange-700"
+                                        >
+                                            Transactions
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
@@ -424,7 +435,7 @@
                                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                                                 </svg>
-                                                <span class="text-sm">PDF</span>
+                                                <span class="text-sm">View Invoice</span>
                                             </button>
                                         </td>
                                     </tr>

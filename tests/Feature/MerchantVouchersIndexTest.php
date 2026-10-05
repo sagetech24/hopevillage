@@ -612,6 +612,9 @@ class MerchantVouchersIndexTest extends TestCase
 
         $this->assertStringContainsString('Amin**** Stor**** Memb****', $html);
         $this->assertStringNotContainsString('Amina Store Member', $html);
+        $this->assertStringContainsString('Date covered:', $html);
+        $this->assertStringContainsString(now()->subMinutes(20)->format('d M Y'), $html);
+        $this->assertStringNotContainsString('Validity:', $html);
         $this->assertStringContainsString('HV-AMINA', $html);
         $this->assertStringContainsString('$15.00', $html);
         $this->assertStringNotContainsString('Elsewhere Member', $html);

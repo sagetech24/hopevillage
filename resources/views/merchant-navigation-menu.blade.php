@@ -152,7 +152,7 @@
             this.qrCodeModalValue = null;
         }
     }"
-    class="max-w-full lg:max-w-xl mx-auto fixed inset-x-0 bottom-0 z-50 bg-[#3a5870] border-t border-orange-200"
+    class="w-full mx-auto fixed inset-x-0 bottom-0 z-50 bg-[#3a5870] border-t border-orange-200"
 >
     <div class="relative max-w-xl mx-auto">
         <div class="flex justify-center items-center gap-2 w-full">
