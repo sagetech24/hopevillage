@@ -20,14 +20,19 @@
 ]) }}>
     <div class="flex items-start justify-between gap-3 p-4 pb-3">
         <div class="min-w-0">
-            <p class="text-[10px] font-medium text-gray-500">Merchant Name:</p>
-            <p class="text-xl font-semibold text-gray-900 truncate" title="{{ $merchantName }}">{{ $merchantName }}</p>
-            @if ($merchantCode)
-                <p class="mt-0.5 text-[10px] text-gray-500 font-mono truncate">{{ 'CODE: '.$merchantCode }}</p>
+            <p class="text-[10px] font-medium text-gray-500">Voucher Name:</p>
+            @if ($entry->adminVoucher?->voucher_code)
+                <a
+                    href="{{ route('admin.admin-vouchers.profile', $entry->adminVoucher->voucher_code) }}"
+                    class="block text-xl font-semibold text-orange-500 cursor-pointer hover:text-orange-600 transition-colors"
+                    title="{{ $entry->adminVoucher->name }}"
+                >
+                    {{ $entry->adminVoucher->name }}
+                </a>
+            @else
+                <p class="text-xl font-semibold text-gray-900">{{ $entry->adminVoucher?->name }}</p>
             @endif
-            @if ($invoice)
-                <p class="mt-1 text-xs font-semibold text-orange-600">Invoice {{ $invoice->invoice_number }}</p>
-            @endif
+            <p class="mt-0.5 text-[10px] text-gray-500 font-mono truncate">{{ $entry->adminVoucher?->voucher_code }}</p>
         </div>
         <div class="flex flex-col items-end gap-1.5 shrink-0">
             <div class="flex items-center gap-1">
@@ -43,8 +48,19 @@
     </div>
 
     <div class="px-4">
-        <p class="text-[11px] font-medium text-gray-500">Voucher Name:</p>
-        <x-ledger.voucher-chip :voucher="$entry->adminVoucher" />
+        <p class="text-[11px] font-medium text-gray-500">Merchant Name:</p>
+        @if ($entry->merchant?->merchant_code)
+            <a
+                href="{{ route('admin.merchants.profile', $entry->merchant->merchant_code) }}"
+                class="block text-xl font-semibold text-orange-500 cursor-pointer hover:text-orange-600 truncate transition-colors"
+                title="{{ $entry->merchant->name }}"
+            >
+                {{ $entry->merchant->name }}
+            </a>
+        @else
+            <p class="text-xl font-semibold text-gray-900 truncate">{{ $entry->merchant?->name }}</p>
+        @endif
+        {{-- <p class="mt-0.5 text-[10px] text-gray-500 font-mono truncate">{{ $entry->merchant?->merchant_code }}</p> --}}
     </div>
 
     <dl class="grid grid-cols-3 gap-2 px-4 py-4 text-sm">

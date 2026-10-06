@@ -707,11 +707,60 @@ class MerchantReimbursementsIndexTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(AdminVoucherLedger::class)
+            ->assertSee('Admin Vouchers')
+            ->assertSee('Merchant Invoices')
+            ->assertDontSee('PDF-1')
+            ->set('ledgerSection', 'invoices')
             ->assertSee('PDF-1')
             ->assertSee('Kampong Grocer')
             ->assertSee('Mina Merchant')
             ->assertSee('Pdf Meal')
-            ->assertSee(route('admin.merchant-admin-voucher-invoices.transaction-history-pdf', $invoice), false);
+            ->assertSee('Invoice actions')
+            ->assertSee(route('admin.merchant-admin-voucher-invoices.pdf', $invoice), false)
+            ->assertSee(route('admin.merchant-admin-voucher-invoices.transaction-history-pdf', $invoice), false)
+            ->set('ledgerSection', 'vouchers')
+            ->assertDontSee('PDF-1');
+    }
+
+    public function test_merchant_invoices_on_the_ledger_are_paginated_without_a_scroll_box(): void
+    {
+        $admin = User::factory()->create(['user_type' => 'admin']);
+        $merchant = Merchant::query()->create([
+            'name' => 'Kampong Grocer',
+            'is_active' => true,
+        ]);
+
+        foreach (range(1, 16) as $number) {
+            $voucher = $this->createAdminVoucher($admin, "Meal {$number}", 'AVOU-PAGE-'.$number);
+            MerchantAdminVoucherInvoice::query()->create([
+                'invoice_number' => 'INV-PAGE-'.str_pad((string) $number, 2, '0', STR_PAD_LEFT),
+                'merchant_id' => $merchant->id,
+                'admin_voucher_id' => $voucher->id,
+                'generated_by' => $admin->id,
+                'voucher_name' => $voucher->name,
+                'voucher_code' => $voucher->voucher_code,
+                'redeemed_count' => 1,
+                'cost_per_voucher' => 10,
+                'amount' => 10,
+                'bank_account' => [
+                    'bank_name' => 'DBS',
+                    'account_name' => 'Kampong Grocer',
+                    'account_number' => '123-456',
+                ],
+                'generated_at' => now()->subMinutes(16 - $number),
+            ]);
+        }
+
+        Livewire::actingAs($admin)
+            ->test(AdminVoucherLedger::class)
+            ->set('ledgerSection', 'invoices')
+            ->assertSee('16 total')
+            ->assertSee('INV-PAGE-16')
+            ->assertDontSee('INV-PAGE-01')
+            ->assertDontSee('max-h-[450px]')
+            ->call('gotoPage', 2, 'invoicesPage')
+            ->assertSee('INV-PAGE-01')
+            ->assertDontSee('INV-PAGE-16');
     }
 
     private function finishedVoucher(User $admin, Merchant $merchant, string $name, string $code): AdminVoucher

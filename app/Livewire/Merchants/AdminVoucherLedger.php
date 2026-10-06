@@ -43,6 +43,8 @@ class AdminVoucherLedger extends Component
 
     public string $viewMode = 'card';
 
+    public string $ledgerSection = 'vouchers';
+
     protected $paginationTheme = 'tailwind';
 
     protected $queryString = [
@@ -51,6 +53,7 @@ class AdminVoucherLedger extends Component
         'monthTo' => ['except' => ''],
         'merchantSearch' => ['except' => ''],
         'outstandingOnly' => ['except' => false],
+        'ledgerSection' => ['as' => 'section', 'except' => 'vouchers'],
     ];
 
     public function mount(): void
@@ -76,6 +79,7 @@ class AdminVoucherLedger extends Component
     public function updatingMerchantSearch(): void
     {
         $this->resetPage();
+        $this->resetPage('invoicesPage');
     }
 
     public function updatingOutstandingOnly(): void
@@ -223,8 +227,8 @@ class AdminVoucherLedger extends Component
                 });
             })
             ->orderByDesc('generated_at')
-            ->limit(25)
-            ->get();
+            ->orderByDesc('id')
+            ->paginate(15, pageName: 'invoicesPage');
 
         $invoiceLookup = MerchantAdminVoucherInvoice::query()
             ->when($entries->isNotEmpty(), function ($invoiceQuery) use ($entries) {

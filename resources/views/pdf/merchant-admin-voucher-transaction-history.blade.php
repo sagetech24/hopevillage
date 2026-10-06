@@ -23,6 +23,7 @@
             overflow-wrap: break-word;
         }
         table.data th { background: #f9fafb; font-weight: 600; color: #374151; }
+        table.data tbody td { font-size: 8px; }
         .num { text-align: right; }
         .total { font-weight: 600; font-size: 14px; }
         .no-data { padding: 24px; text-align: center; color: #9ca3af; }
@@ -78,10 +79,11 @@
         @foreach ($transactions->chunk(80) as $chunk)
             <table class="data chunk">
                 <colgroup>
-                    <col style="width: 3%;">
+                    <col style="width: 1.5%;">
                     <col style="width: 32%;">
                     <col style="width: 22%;">
                     <col style="width: 22%;">
+                    <col style="width: 16%;">
                     <col style="width: 16%;">
                 </colgroup>
                 @if ($loop->first)
@@ -91,6 +93,7 @@
                             <th>Member Name</th>
                             <th>Member Code</th>
                             <th>Redeemed At</th>
+                            <th>&nbsp;</th>
                             <th class="num">Amount</th>
                         </tr>
                     </thead>
@@ -102,6 +105,7 @@
                             <td>{{ $tx->member_name ?? '—' }}</td>
                             <td>{{ $tx->member_code ?? '—' }}</td>
                             <td>{{ $tx->redeemed_at ? \Carbon\Carbon::parse($tx->redeemed_at)->format('M d, Y H:i') : '—' }}</td>
+                            <td>&nbsp;</td>
                             <td class="num">SGD {{ number_format((float) $tx->amount, 2) }}</td>
                         </tr>
                     @endforeach
@@ -109,7 +113,7 @@
                 @if ($loop->last)
                     <tfoot>
                         <tr>
-                            <td colspan="4" class="num total">Total:</td>
+                            <td colspan="5" class="num total">Total:</td>
                             <td class="num total">SGD {{ number_format((float) $totalAmount, 2) }}</td>
                         </tr>
                     </tfoot>
