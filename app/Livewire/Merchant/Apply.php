@@ -19,6 +19,8 @@ class Apply extends Component
 
     public $name = '';
 
+    public $uen = '';
+
     public $description = '';
 
     public $contact_name = '';
@@ -63,6 +65,7 @@ class Apply extends Component
 
         return [
             'name' => 'required|string|max:255',
+            'uen' => 'nullable|string|max:20',
             'description' => 'nullable|string',
             'contact_name' => 'required|string|max:255',
             'phone' => [
@@ -224,6 +227,7 @@ class Apply extends Component
 
                 $merchant = Merchant::create([
                     'name' => $this->name,
+                    'uen' => blank($this->uen) ? null : trim($this->uen),
                     'description' => $this->description,
                     'contact_name' => $this->contact_name,
                     'phone' => $this->phone,
@@ -309,6 +313,7 @@ class Apply extends Component
         // Reset form
         $this->reset([
             'name',
+            'uen',
             'description',
             'contact_name',
             'phone',

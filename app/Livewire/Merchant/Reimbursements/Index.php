@@ -24,6 +24,8 @@ class Index extends Component
 
     public string $invoiceNumber = '';
 
+    public string $uen = '';
+
     public string $bankDetailsMode = 'new';
 
     public string $selectedSavedBank = '';
@@ -129,6 +131,7 @@ class Index extends Component
         $this->selectedInvoiceVoucherId = $adminVoucherId;
         $this->replacingInvoiceId = null;
         $this->invoiceNumber = '';
+        $this->uen = $this->defaultUen($merchant);
         $this->bankDetailsMode = 'new';
         $this->selectedSavedBank = '';
         $this->bankName = '';
@@ -157,6 +160,7 @@ class Index extends Component
         $this->selectedInvoiceVoucherId = $adminVoucherId;
         $this->replacingInvoiceId = $row['invoice']->id;
         $this->invoiceNumber = '';
+        $this->uen = $this->defaultUen($merchant);
         $this->bankDetailsMode = 'new';
         $this->selectedSavedBank = '';
         $this->bankName = '';
@@ -173,6 +177,7 @@ class Index extends Component
         $this->selectedInvoiceVoucherId = null;
         $this->replacingInvoiceId = null;
         $this->invoiceNumber = '';
+        $this->uen = '';
         $this->bankDetailsMode = 'new';
         $this->selectedSavedBank = '';
         $this->bankName = '';
@@ -269,6 +274,7 @@ class Index extends Component
         }
 
         $this->invoiceNumber = trim($this->invoiceNumber);
+        $this->uen = trim($this->uen);
 
         $replacingInvoice = null;
         if ($this->replacingInvoiceId) {
@@ -314,6 +320,7 @@ class Index extends Component
                 'max:50',
                 Rule::when(filled($this->invoiceNumber), $invoiceNumberRule),
             ],
+            'uen' => ['nullable', 'string', 'max:20'],
             'bankName' => ['required', 'string', 'max:120'],
             'accountName' => ['required', 'string', 'max:120'],
             'accountNumber' => ['required', 'string', 'max:50'],
@@ -326,12 +333,30 @@ class Index extends Component
         ];
 
         $invoice = $replacingInvoice
-            ? $invoices->regenerate($merchant, $user, $this->selectedInvoiceVoucherId, $this->invoiceNumber, $bankAccount)
-            : $invoices->create($merchant, $user, $this->selectedInvoiceVoucherId, $this->invoiceNumber, $bankAccount);
+            ? $invoices->regenerate($merchant, $user, $this->selectedInvoiceVoucherId, $this->invoiceNumber, $bankAccount, $this->uen)
+            : $invoices->create($merchant, $user, $this->selectedInvoiceVoucherId, $this->invoiceNumber, $bankAccount, $this->uen);
 
         $url = route('merchant.admin-voucher-invoices.pdf', $invoice);
         $this->closeInvoiceModal();
         $this->dispatch('invoice-ready', url: $url);
+    }
+
+    private function defaultUen(Merchant $merchant): string
+    {
+        $fromMerchant = trim((string) ($merchant->uen ?? ''));
+        if ($fromMerchant !== '') {
+            return $fromMerchant;
+        }
+
+        $previous = MerchantAdminVoucherInvoice::query()
+            ->where('merchant_id', $merchant->id)
+            ->whereNotNull('uen')
+            ->where('uen', '!=', '')
+            ->orderByDesc('generated_at')
+            ->orderByDesc('id')
+            ->value('uen');
+
+        return trim((string) ($previous ?? ''));
     }
 
     /**

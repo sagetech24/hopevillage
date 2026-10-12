@@ -161,6 +161,24 @@
                                     </div>
 
                                     <div>
+                                        <label for="uen" class="mb-1.5 block text-sm font-medium text-gray-700">
+                                            UEN
+                                            <span class="font-normal text-gray-400">(optional)</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="uen"
+                                            wire:model="uen"
+                                            maxlength="20"
+                                            class="{{ $inputClass }} @error('uen') {{ $errorClass }} @enderror"
+                                            placeholder="e.g. 201912345A"
+                                        >
+                                        @error('uen')
+                                            <p class="mt-1.5 text-sm text-red-500">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+
+                                    <div>
                                         <label for="description" class="mb-1.5 block text-sm font-medium text-gray-700">
                                             Short description about your business
                                             <span class="font-normal text-gray-400">(optional)</span>

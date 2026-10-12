@@ -59,8 +59,44 @@ class MerchantApplyTest extends TestCase
         $user = User::where('whatsapp_number', '+6591234567')->first();
 
         $this->assertNotNull($merchant);
+        $this->assertNull($merchant->uen);
         $this->assertNotNull($user);
         $this->assertTrue($merchant->users()->where('user_id', $user->id)->exists());
+    }
+
+    public function test_merchant_application_saves_optional_uen(): void
+    {
+        Livewire::test(Apply::class)
+            ->set('name', 'UEN Kopitiam')
+            ->set('uen', ' 201912345A ')
+            ->set('contact_name', 'Dana Lee')
+            ->set('phone', '81234567')
+            ->set('password', 'SecurePass1')
+            ->set('password_confirmation', 'SecurePass1')
+            ->set('terms', true)
+            ->call('submit')
+            ->assertHasNoErrors()
+            ->assertSet('showSuccess', true);
+
+        $this->assertDatabaseHas('merchants', [
+            'name' => 'UEN Kopitiam',
+            'uen' => '201912345A',
+        ]);
+    }
+
+    public function test_merchant_application_rejects_an_overlong_uen(): void
+    {
+        Livewire::test(Apply::class)
+            ->set('name', 'Long UEN Shop')
+            ->set('uen', str_repeat('A', 21))
+            ->set('contact_name', 'Evan Ng')
+            ->set('phone', '82345678')
+            ->set('password', 'SecurePass1')
+            ->set('password_confirmation', 'SecurePass1')
+            ->set('terms', true)
+            ->call('submit')
+            ->assertHasErrors(['uen'])
+            ->assertSet('showSuccess', false);
     }
 
     public function test_merchant_application_requires_core_fields(): void

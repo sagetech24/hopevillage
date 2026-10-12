@@ -76,8 +76,9 @@ class MerchantAdminVoucherInvoiceService
         int $adminVoucherId,
         ?string $invoiceNumber,
         array $bankAccount,
+        ?string $uen = null,
     ): MerchantAdminVoucherInvoice {
-        return DB::transaction(function () use ($merchant, $generatedBy, $adminVoucherId, $invoiceNumber, $bankAccount) {
+        return DB::transaction(function () use ($merchant, $generatedBy, $adminVoucherId, $invoiceNumber, $bankAccount, $uen) {
             $row = $this->billableVouchers($merchant)->first(
                 fn (array $item) => $item['voucher']->id === $adminVoucherId
             );
@@ -111,9 +112,11 @@ class MerchantAdminVoucherInvoiceService
 
             /** @var AdminVoucher $voucher */
             $voucher = $row['voucher'];
+            $uen = $this->normalizeUen($uen);
 
-            return MerchantAdminVoucherInvoice::query()->create([
+            $invoice = MerchantAdminVoucherInvoice::query()->create([
                 'invoice_number' => $number,
+                'uen' => $uen,
                 'merchant_id' => $merchant->id,
                 'admin_voucher_id' => $voucher->id,
                 'generated_by' => $generatedBy->id,
@@ -131,6 +134,12 @@ class MerchantAdminVoucherInvoiceService
                 ],
                 'generated_at' => now(),
             ]);
+
+            if ($uen !== null) {
+                $merchant->update(['uen' => $uen]);
+            }
+
+            return $invoice;
         });
     }
 
@@ -148,8 +157,9 @@ class MerchantAdminVoucherInvoiceService
         int $adminVoucherId,
         ?string $invoiceNumber,
         array $bankAccount,
+        ?string $uen = null,
     ): MerchantAdminVoucherInvoice {
-        return DB::transaction(function () use ($merchant, $generatedBy, $adminVoucherId, $invoiceNumber, $bankAccount) {
+        return DB::transaction(function () use ($merchant, $generatedBy, $adminVoucherId, $invoiceNumber, $bankAccount, $uen) {
             $existing = MerchantAdminVoucherInvoice::query()
                 ->where('merchant_id', $merchant->id)
                 ->where('admin_voucher_id', $adminVoucherId)
@@ -169,7 +179,14 @@ class MerchantAdminVoucherInvoiceService
 
             $existing->delete();
 
-            return $this->create($merchant, $generatedBy, $adminVoucherId, $number, $bankAccount);
+            return $this->create($merchant, $generatedBy, $adminVoucherId, $number, $bankAccount, $uen);
         });
+    }
+
+    private function normalizeUen(?string $uen): ?string
+    {
+        $uen = trim((string) $uen);
+
+        return $uen === '' ? null : $uen;
     }
 }

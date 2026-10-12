@@ -9,6 +9,7 @@ class MerchantAdminVoucherInvoice extends Model
 {
     protected $fillable = [
         'invoice_number',
+        'uen',
         'merchant_id',
         'admin_voucher_id',
         'generated_by',

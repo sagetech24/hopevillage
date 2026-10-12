@@ -7,6 +7,7 @@ use App\Livewire\Merchants\AdminVoucherLedger;
 use App\Models\AdminVoucher;
 use App\Models\AdminVoucherLedgerEntry;
 use App\Models\AdminVoucherReimbursement;
+use App\Models\Location;
 use App\Models\Merchant;
 use App\Models\MerchantAdminVoucherInvoice;
 use App\Models\User;
@@ -359,6 +360,7 @@ class MerchantReimbursementsIndexTest extends TestCase
         $this->assertSame(2, $invoice->redeemed_count);
         $this->assertSame('10.00', $invoice->cost_per_voucher);
         $this->assertSame('20.00', $invoice->amount);
+        $this->assertNull($invoice->uen);
         $this->assertSame([
             'bank_name' => 'DBS',
             'account_name' => 'Kampong Grocer',
@@ -527,6 +529,126 @@ class MerchantReimbursementsIndexTest extends TestCase
         $this->assertSame(0, MerchantAdminVoucherInvoice::query()->count());
     }
 
+    public function test_invoice_uen_defaults_from_a_previous_invoice_and_can_be_changed(): void
+    {
+        [$user, $merchant] = $this->actingMerchant();
+        $admin = User::factory()->create(['user_type' => 'admin']);
+        $first = $this->finishedVoucher($admin, $merchant, 'Uen Meal', 'AVOU-UEN-1');
+        $second = $this->finishedVoucher($admin, $merchant, 'Uen Meal Two', 'AVOU-UEN-2');
+        $this->redeem($first, $merchant, 1);
+        $this->redeem($second, $merchant, 1);
+
+        $this->actingAs($user);
+
+        Livewire::test(Index::class)
+            ->call('openInvoiceModal', $first->id)
+            ->assertSet('uen', '')
+            ->set('invoiceNumber', 'UEN-1')
+            ->set('uen', '201912345A')
+            ->set('bankName', 'DBS')
+            ->set('accountName', 'Kampong Grocer')
+            ->set('accountNumber', '123-456')
+            ->call('saveInvoice')
+            ->assertHasNoErrors();
+
+        $this->assertSame('201912345A', MerchantAdminVoucherInvoice::query()->where('admin_voucher_id', $first->id)->first()->uen);
+        $this->assertSame('201912345A', $merchant->fresh()->uen);
+
+        Livewire::test(Index::class)
+            ->call('openInvoiceModal', $second->id)
+            ->assertSet('uen', '201912345A')
+            ->set('invoiceNumber', 'UEN-2')
+            ->set('uen', 'T09LL0001A')
+            ->set('bankName', 'DBS')
+            ->set('accountName', 'Kampong Grocer')
+            ->set('accountNumber', '123-456')
+            ->call('saveInvoice')
+            ->assertHasNoErrors();
+
+        $this->assertSame('T09LL0001A', MerchantAdminVoucherInvoice::query()->where('admin_voucher_id', $second->id)->first()->uen);
+        $this->assertSame('T09LL0001A', $merchant->fresh()->uen);
+
+        Livewire::test(Index::class)
+            ->call('openRegenerateInvoiceModal', $first->id)
+            ->assertSet('uen', 'T09LL0001A')
+            ->set('uen', '202099999Z')
+            ->set('bankName', 'DBS')
+            ->set('accountName', 'Kampong Grocer')
+            ->set('accountNumber', '123-456')
+            ->call('saveInvoice')
+            ->assertHasNoErrors();
+
+        $this->assertSame('202099999Z', MerchantAdminVoucherInvoice::query()->where('admin_voucher_id', $first->id)->first()->uen);
+        $this->assertSame('202099999Z', $merchant->fresh()->uen);
+        $this->assertSame('T09LL0001A', MerchantAdminVoucherInvoice::query()->where('admin_voucher_id', $second->id)->first()->uen);
+    }
+
+    public function test_invoice_uen_defaults_from_the_merchant_when_no_invoice_has_one(): void
+    {
+        [$user, $merchant] = $this->actingMerchant();
+        $merchant->update(['uen' => '53321234K']);
+        $admin = User::factory()->create(['user_type' => 'admin']);
+        $first = $this->finishedVoucher($admin, $merchant, 'Profile Uen Meal', 'AVOU-UEN-M1');
+        $second = $this->finishedVoucher($admin, $merchant, 'Profile Uen Meal Two', 'AVOU-UEN-M2');
+        $this->redeem($first, $merchant, 1);
+        $this->redeem($second, $merchant, 1);
+
+        $this->actingAs($user);
+
+        Livewire::test(Index::class)
+            ->call('openInvoiceModal', $first->id)
+            ->assertSet('uen', '53321234K')
+            ->set('uen', '')
+            ->set('bankName', 'DBS')
+            ->set('accountName', 'Kampong Grocer')
+            ->set('accountNumber', '123-456')
+            ->call('saveInvoice')
+            ->assertHasNoErrors();
+
+        $invoice = MerchantAdminVoucherInvoice::query()->where('admin_voucher_id', $first->id)->firstOrFail();
+        $this->assertNull($invoice->uen);
+        $this->assertSame('53321234K', $merchant->fresh()->uen);
+
+        Livewire::test(Index::class)
+            ->call('openInvoiceModal', $second->id)
+            ->assertSet('uen', '53321234K');
+    }
+
+    public function test_invoice_uen_falls_back_to_a_previous_invoice_when_the_merchant_uen_is_empty(): void
+    {
+        [$user, $merchant] = $this->actingMerchant();
+        $admin = User::factory()->create(['user_type' => 'admin']);
+        $first = $this->finishedVoucher($admin, $merchant, 'Stored Uen Meal', 'AVOU-UEN-S1');
+        $second = $this->finishedVoucher($admin, $merchant, 'Stored Uen Meal Two', 'AVOU-UEN-S2');
+        $this->redeem($first, $merchant, 1);
+        $this->redeem($second, $merchant, 1);
+
+        $this->actingAs($user);
+
+        Livewire::test(Index::class)
+            ->call('openInvoiceModal', $first->id)
+            ->set('uen', '201912345A')
+            ->set('bankName', 'DBS')
+            ->set('accountName', 'Kampong Grocer')
+            ->set('accountNumber', '123-456')
+            ->call('saveInvoice')
+            ->assertHasNoErrors();
+
+        $merchant->update(['uen' => '53321234K']);
+
+        Livewire::test(Index::class)
+            ->call('openInvoiceModal', $second->id)
+            ->assertSet('uen', '53321234K');
+
+        $merchant->update(['uen' => null]);
+
+        Livewire::test(Index::class)
+            ->call('openInvoiceModal', $second->id)
+            ->assertSet('uen', '201912345A')
+            ->call('openRegenerateInvoiceModal', $first->id)
+            ->assertSet('uen', '201912345A');
+    }
+
     public function test_merchant_can_reuse_bank_details_from_a_previous_invoice(): void
     {
         [$user, $merchant] = $this->actingMerchant();
@@ -648,12 +770,21 @@ class MerchantReimbursementsIndexTest extends TestCase
             'postal_code' => '048980',
             'phone' => '6123 4567',
             'email' => 'hello@kampong.test',
+            'website' => 'https://kampong.test',
         ]);
         $user->update(['name' => 'Mina Merchant']);
         $admin = User::factory()->create([
             'user_type' => 'admin',
             'name' => 'Hope Admin',
         ]);
+        Location::query()->create([
+            'name' => 'Hope Village Kaki Bukit Recreation Centre',
+            'address' => '7 Kaki Bukit Ave 3, #01-110',
+            'city' => 'Singapore',
+            'postal_code' => '415814',
+            'is_active' => true,
+        ]);
+
         $voucher = $this->finishedVoucher($admin, $merchant, 'Pdf Meal', 'AVOU-PDF');
         $this->redeem($voucher, $merchant, 1);
 
@@ -662,6 +793,7 @@ class MerchantReimbursementsIndexTest extends TestCase
         Livewire::test(Index::class)
             ->call('openInvoiceModal', $voucher->id)
             ->set('invoiceNumber', 'PDF-1')
+            ->set('uen', '201912345A')
             ->set('bankName', 'DBS')
             ->set('accountName', 'Kampong Grocer')
             ->set('accountNumber', '123-456')
@@ -678,8 +810,16 @@ class MerchantReimbursementsIndexTest extends TestCase
 
         $this->assertStringContainsString('Kampong Grocer', $html);
         $this->assertStringContainsString('12 Market Street, Singapore, 048980', $html);
-        $this->assertStringContainsString('6123 4567 · hello@kampong.test', $html);
+        $this->assertStringContainsString('Tel. No.: 6123 4567', $html);
+        $this->assertStringContainsString('Email: hello@kampong.test', $html);
+        $this->assertStringContainsString('Website: https://kampong.test', $html);
+        $this->assertStringContainsString('Hope Village Kaki Bukit Recreation Centre', $html);
+        $this->assertStringContainsString('Name & Signature', $html);
+        $this->assertStringContainsString('HOPE INITIATIVE ALLIANCE', $html);
+        $this->assertStringContainsString('7 Kaki Bukit Ave 3, #01-110, Singapore, 415814', $html);
         $this->assertStringContainsString('class="org-name">Kampong Grocer', $html);
+        $this->assertStringContainsString('UEN : 201912345A', $html);
+        $this->assertStringNotContainsString('XXXXXX', $html);
         $this->assertStringNotContainsString('class="org-name">Hope Village', $html);
 
         $this->actingAs($user)

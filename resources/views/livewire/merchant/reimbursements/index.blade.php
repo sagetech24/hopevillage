@@ -394,6 +394,22 @@
                             @enderror
                         </div>
                         <div>
+                            <label for="uen" class="block text-sm font-medium text-slate-700">
+                                UEN
+                                <span class="font-normal text-slate-400">(optional)</span>
+                            </label>
+                            <input
+                                id="uen"
+                                type="text"
+                                wire:model="uen"
+                                maxlength="20"
+                                class="mt-1 block w-full rounded-full border-slate-300 text-slate-800 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                            >
+                            @error('uen')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div>
                             <p class="block text-sm font-medium text-slate-700">Bank details</p>
                             <div class="mt-2 inline-flex rounded-full border border-slate-200 bg-slate-50 p-1" role="tablist" aria-label="Bank details">
                                 <button
