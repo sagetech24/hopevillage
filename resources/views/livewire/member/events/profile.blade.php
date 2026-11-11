@@ -70,19 +70,21 @@
                             >
                         </div>
                     @endif
-                    <div class="space-y-2">
-                        <h2 class="text-2xl font-bold text-gray-800">{{ $event->title }}</h2>
+                    <div class="space-y-2 px-2">
+                        <h2 class="text-lg font-bold text-gray-800">{{ $event->title }}</h2>
                         <p class="text-xs text-gray-600 italic">{{ $schedule }}</p>
                     </div>
 
                     <div class="bg-white border border-gray-200 rounded-xl p-6">
                         <div class="space-y-2 text-sm text-gray-700">
-                            <div class="flex flex-col gap-1">
-                                <span class="font-bold text-xs text-gray-600">Description:</span>
-                                <div class="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700">
-                                    {!! $event->description !!}
+                            @if($event->description)
+                                <div class="flex flex-col gap-1">
+                                    <span class="font-bold text-xs text-gray-600">Description:</span>
+                                    <div class="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700">
+                                        {!! $event->description !!}
+                                    </div>
                                 </div>
-                            </div>
+                            @endif
                             <div>
                                 <span class="font-bold text-xs text-gray-600">Location:</span>
                                 <span>{{ $location?->name ?? 'Unknown location' }}</span>
@@ -108,7 +110,7 @@
                     </div>
                 </div>
 
-                <div class="space-y-6">
+                {{-- <div class="space-y-6">
                     <div class="bg-white border border-gray-200 rounded-xl p-6">
                         <h3 class="text-lg font-semibold text-gray-800 mb-3">Registration</h3>
 
@@ -146,7 +148,7 @@
                             @endif
                         </div>
                     </div>
-                </div>
+                </div> --}}
             </div>
     </div>
 
