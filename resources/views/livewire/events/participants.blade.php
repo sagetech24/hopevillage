@@ -59,11 +59,13 @@
                             </th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 <button
-                                    wire:click="sortByRegisteredDate"
+                                    type="button"
+                                    wire:click="sortByAccessType"
                                     class="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                                    title="Sort by Access Type"
                                 >
-                                    Registered Date
-                                    @if($registeredDateSort === 'asc')
+                                    Access Type
+                                    @if($sortField === 'access_type' && $sortDirection === 'asc')
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
                                         </svg>
@@ -75,7 +77,23 @@
                                 </button>
                             </th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Attended Date
+                                <button
+                                    type="button"
+                                    wire:click="sortByAttendedDate"
+                                    class="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                                    title="Sort by Attended Date"
+                                >
+                                    Attended Date
+                                    @if($sortField === 'attended_at' && $sortDirection === 'asc')
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                                        </svg>
+                                    @else
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    @endif
+                                </button>
                             </th>
                             <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Status
@@ -96,9 +114,9 @@
                             <tr class="hover:bg-gray-50 transition-colors">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex flex-col">
-                                        <div class="text-lg font-semibold text-gray-900 capitalize">
+                                        <a href="{{ route('admin.members.profile', $registration->user->qr_code) }}" class="text-lg font-semibold text-orange-500 capitalize hover:text-orange-600">
                                             {{ $registration->user->name ?? 'N/A' }}
-                                        </div>
+                                        </a>
                                         @if($registration->user)
                                             <div class="text-xs text-gray-500 flex items-center gap-1">
                                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3">
@@ -123,14 +141,13 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    <div class="flex flex-col gap-1">
-                                        <span class="text-gray-600 font-medium text-md">
-                                            {{ $registration->user->created_at->format('d M Y') }}
+                                    @if($registration->access_type)
+                                        <span class="text-gray-700 font-medium capitalize">
+                                            {{ str_replace('_', ' ', $registration->access_type) }}
                                         </span>
-                                        <div class="text-gray-400 text-sm">
-                                            {{ $registration->user->created_at->format('h:i A') }}
-                                        </div>
-                                    </div>
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
                                 </td>
                                 <td class="px-6 py-4 text-gray-900">
                                     @if($registration->attended_at)
