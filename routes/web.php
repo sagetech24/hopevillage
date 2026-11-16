@@ -13,6 +13,9 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+// Public WhatsApp channel short link
+Route::redirect('/whatsappchannel', 'https://whatsapp.com/channel/0029VbDVcyT2v1IvT04tR416');
+
 // Custom Password Reset Routes (override Fortify's default)
 Route::get('/forgot-password', [PasswordResetController::class, 'show'])->name('password.request');
 Route::post('/forgot-password', [PasswordResetController::class, 'store'])->name('password.email');
