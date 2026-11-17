@@ -116,12 +116,50 @@ class PointsService
 
     public function awardEventJoin(User $user, Event $event): void
     {
-        $this->award(
-            user: $user,
-            activityName: self::ACTIVITY_EVENT_JOIN,
-            description: 'Member joined event',
-            locationId: $event->location_id,
-        );
+        DB::transaction(function () use ($user, $event) {
+            $activityType = $this->activityTypeForPointMovement(self::ACTIVITY_EVENT_JOIN);
+            $description = 'Member joined event: '.$event->title;
+
+            $memberActivity = MemberActivity::query()->firstOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'activity_type_id' => $activityType->id,
+                    'event_id' => $event->id,
+                ],
+                [
+                    'location_id' => $event->location_id,
+                    'amenity_id' => null,
+                    'activity_time' => now(),
+                    'description' => $description,
+                    'metadata' => [
+                        'event_id' => $event->id,
+                        'event_code' => $event->event_code,
+                        'event_title' => $event->title,
+                        'qr_code' => $user->qr_code,
+                        'access_type' => 'app',
+                    ],
+                ]
+            );
+
+            // Already recorded (and usually already awarded) for this member + event.
+            if (! $memberActivity->wasRecentlyCreated) {
+                $alreadyAwarded = PointLog::query()
+                    ->where('member_activity_id', $memberActivity->id)
+                    ->exists();
+
+                if ($alreadyAwarded) {
+                    return;
+                }
+            }
+
+            $this->award(
+                user: $user,
+                activityName: self::ACTIVITY_EVENT_JOIN,
+                description: 'Member joined event',
+                locationId: $event->location_id,
+                memberActivityId: $memberActivity->id,
+            );
+        });
     }
 
     public function awardEventAttend(User $user, Event $event): void
