@@ -6,6 +6,7 @@ use App\Http\Controllers\QrCodeController;
 use App\Http\Controllers\SingpassController;
 use App\Http\Controllers\VerificationCodeController;
 use App\Http\Controllers\WhatsAppValidationController;
+use App\Models\Event;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -14,7 +15,16 @@ Route::get('/', function () {
         return redirect()->route('dashboard');
     }
 
-    return view('landing');
+    $upcomingEvents = Event::query()
+        ->where('status', 'published')
+        ->where('end_date', '>=', now())
+        ->whereHas('location')
+        ->with(['location', 'media'])
+        ->orderBy('start_date')
+        ->limit(12)
+        ->get();
+
+    return view('landing', compact('upcomingEvents'));
 })->name('home');
 
 // Public WhatsApp channel short link
