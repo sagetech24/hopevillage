@@ -130,6 +130,7 @@ class EntryScansPerLocation extends Component
     protected function aggregatedActivityCounts($startDate, $endDate): array
     {
         $nonEventCounts = MemberActivity::query()
+            ->notVoided()
             ->whereBetween('activity_time', [$startDate, $endDate])
             ->where('activity_type_id', '!=', self::ATTEND_EVENT_TYPE_ID)
             ->selectRaw('DATE(activity_time) as date, activity_type_id, COUNT(*) as count')
@@ -137,6 +138,7 @@ class EntryScansPerLocation extends Component
             ->get();
 
         $eventCounts = MemberActivity::query()
+            ->notVoided()
             ->whereBetween('activity_time', [$startDate, $endDate])
             ->where('activity_type_id', self::ATTEND_EVENT_TYPE_ID)
             ->whereNotExists(function ($subQuery) {

@@ -84,6 +84,50 @@ class EntryScansPerLocationChartTest extends TestCase
         $this->assertSame(1, $this->countOnDate($voucherDataset, now()->subDays(2)));
     }
 
+    public function test_chart_excludes_voided_member_activities(): void
+    {
+        $member = User::factory()->create(['user_type' => 'member']);
+
+        $joinType = ActivityType::query()->create([
+            'name' => PointsService::ACTIVITY_EVENT_JOIN,
+            'description' => 'Member Join Event',
+            'is_active' => true,
+        ]);
+
+        $location = Location::query()->create([
+            'name' => 'Join Location',
+            'is_active' => true,
+            'location_code' => 'LOC-JOIN01',
+        ]);
+
+        MemberActivity::query()->create([
+            'user_id' => $member->id,
+            'activity_type_id' => $joinType->id,
+            'location_id' => $location->id,
+            'activity_time' => now(),
+            'metadata' => null,
+        ]);
+
+        MemberActivity::query()->create([
+            'user_id' => $member->id,
+            'activity_type_id' => $joinType->id,
+            'location_id' => $location->id,
+            'activity_time' => now(),
+            'metadata' => [
+                'status' => 'void',
+                'void_context' => ['voided_at' => now()->toIso8601String()],
+            ],
+        ]);
+
+        $data = Livewire::test(EntryScansPerLocation::class)
+            ->viewData('activityTypesData');
+
+        $joinDataset = $this->datasetByLabel($data, 'Member Join Event');
+        $this->assertNotNull($joinDataset);
+        $this->assertSame(1, $this->todayCount($joinDataset));
+        $this->assertSame(1, array_sum($joinDataset['data']));
+    }
+
     public function test_chart_does_not_duplicate_member_redeem_voucher_activity_type(): void
     {
         $member = User::factory()->create(['user_type' => 'member']);

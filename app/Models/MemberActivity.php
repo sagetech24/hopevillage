@@ -59,4 +59,14 @@ class MemberActivity extends Model
     {
         return $this->hasOne(PointLog::class);
     }
+
+    /**
+     * Exclude activities marked void in metadata.
+     */
+    public function scopeNotVoided($query)
+    {
+        return $query->whereRaw(
+            "COALESCE(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.status')), '') <> 'void'"
+        );
+    }
 }

@@ -180,7 +180,12 @@ class SetActivityVoidButton extends Component
                 'status' => 'void',
                 'void_context' => $voidContext,
             ]);
-            $this->memberActivity->update(['metadata' => $metadata]);
+            // Touch metadata only — keep the original activity_time for reporting.
+            $this->memberActivity->forceFill([
+                'metadata' => $metadata,
+                'activity_time' => $this->memberActivity->getRawOriginal('activity_time')
+                    ?? $this->memberActivity->activity_time,
+            ])->save();
         });
 
         if ($pointsToDeduct > 0) {
@@ -306,7 +311,12 @@ class SetActivityVoidButton extends Component
                 $newMeta['void_undone_at'] = now()->toIso8601String();
                 $newMeta['void_undone_by'] = $admin->id;
                 $newMeta['void_undone_trx'] = $randomCode;
-                $this->memberActivity->update(['metadata' => $newMeta]);
+                // Touch metadata only — keep the original activity_time for reporting.
+                $this->memberActivity->forceFill([
+                    'metadata' => $newMeta,
+                    'activity_time' => $this->memberActivity->getRawOriginal('activity_time')
+                        ?? $this->memberActivity->activity_time,
+                ])->save();
             });
         } catch (\Throwable $e) {
             Log::warning('Activity void undo failed', [
