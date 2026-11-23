@@ -120,7 +120,6 @@ class Participants extends Component
 
         $query = EventRegistration::query()
             ->where('event_registrations.event_id', $this->event->id)
-            ->where('event_registrations.status', 'attended')
             ->with('user');
 
         // Apply search filter
@@ -134,9 +133,9 @@ class Participants extends Component
         }
 
         // Apply status filter
-        // if ($this->statusFilter !== 'all') {
-        //     $query->where('status', $this->statusFilter);
-        // }
+        if ($this->statusFilter !== 'all') {
+            $query->where('event_registrations.status', $this->statusFilter);
+        }
 
         $sortDirection = $this->sortDirection === 'asc' ? 'asc' : 'desc';
 

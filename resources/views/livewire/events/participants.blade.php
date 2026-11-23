@@ -40,7 +40,7 @@
                     >
                         <option value="all">All</option>
                         {{-- <option value="pending">Pending</option> --}}
-                        <option value="registered" disabled>Registered Only</option>
+                        <option value="registered">Registered Only</option>
                         <option value="attended">Attended</option>
                         {{-- <option value="cancelled">Cancelled</option> --}}
                         {{-- <option value="no_show">No Show</option> --}}
