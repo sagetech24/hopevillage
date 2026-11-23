@@ -98,6 +98,13 @@
                             <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Status
                             </th>
+                            @if($showVoidAction)
+                                @can('can_void_member_activity')
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Action
+                                    </th>
+                                @endcan
+                            @endif
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -111,7 +118,7 @@
                                     default => 'bg-blue-100 border border-blue-500 text-blue-800',
                                 };
                             @endphp
-                            <tr class="hover:bg-gray-50 transition-colors">
+                            <tr class="hover:bg-gray-50 transition-colors" wire:key="registration-{{ $registration->id }}">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex flex-col">
                                         <a href="{{ route('admin.members.profile', $registration->user->qr_code) }}" class="text-lg font-semibold text-orange-500 capitalize hover:text-orange-600">
@@ -168,6 +175,20 @@
                                         {{ ucfirst(str_replace('_', ' ', $registration->status)) }}
                                     </span>
                                 </td>
+                                @if($showVoidAction)
+                                    @can('can_void_member_activity')
+                                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                                            @if($registration->join_activity)
+                                                <livewire:members.set-activity-void-button
+                                                    :member-activity="$registration->join_activity"
+                                                    :key="'void-join-'.$registration->join_activity->id"
+                                                />
+                                            @else
+                                                <span class="text-xs text-gray-400">No join activity</span>
+                                            @endif
+                                        </td>
+                                    @endcan
+                                @endif
                             </tr>
                         @endforeach
                     </tbody>

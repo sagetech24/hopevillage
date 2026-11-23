@@ -8,6 +8,7 @@ use App\Models\EventRegistration;
 use App\Models\MemberActivity;
 use App\Services\PointsService;
 use Illuminate\Support\Facades\Response;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -28,6 +29,12 @@ class Participants extends Component
     {
         $this->eventCode = $event_code;
         $this->loadEvent();
+    }
+
+    #[On('activity-updated')]
+    public function refreshAfterVoid(): void
+    {
+        // Re-render so voided join registrations drop out of the list.
     }
 
     public function loadEvent()
@@ -156,13 +163,20 @@ class Participants extends Component
 
         $registrations = $query->paginate(10);
 
+        $userIds = $registrations->getCollection()->pluck('user_id')->all();
+
         $accessTypesByUserId = $this->accessTypesByUserId(
-            $registrations->getCollection()->pluck('user_id')->all(),
+            $userIds,
             $attendActivityTypeId
         );
 
-        $registrations->getCollection()->transform(function (EventRegistration $registration) use ($accessTypesByUserId) {
+        $joinActivitiesByUserId = $this->statusFilter === 'registered'
+            ? $this->joinActivitiesByUserId($userIds)
+            : [];
+
+        $registrations->getCollection()->transform(function (EventRegistration $registration) use ($accessTypesByUserId, $joinActivitiesByUserId) {
             $registration->access_type = $accessTypesByUserId[$registration->user_id] ?? null;
+            $registration->join_activity = $joinActivitiesByUserId[(int) $registration->user_id] ?? null;
 
             return $registration;
         });
@@ -170,7 +184,38 @@ class Participants extends Component
         return view('livewire.events.participants', [
             'registrations' => $registrations,
             'event' => $this->event,
+            'showVoidAction' => $this->statusFilter === 'registered',
         ]);
+    }
+
+    /**
+     * @param  array<int, int|string|null>  $userIds
+     * @return array<int, MemberActivity>
+     */
+    private function joinActivitiesByUserId(array $userIds): array
+    {
+        $userIds = array_values(array_filter($userIds));
+
+        if ($userIds === []) {
+            return [];
+        }
+
+        $joinActivityTypeId = ActivityType::query()
+            ->where('name', PointsService::ACTIVITY_EVENT_JOIN)
+            ->value('id');
+
+        if (! $joinActivityTypeId) {
+            return [];
+        }
+
+        return MemberActivity::query()
+            ->where('event_id', $this->event->id)
+            ->where('activity_type_id', $joinActivityTypeId)
+            ->whereIn('user_id', $userIds)
+            ->with(['activityType', 'pointLog', 'user'])
+            ->get()
+            ->keyBy(fn (MemberActivity $activity) => (int) $activity->user_id)
+            ->all();
     }
 
     /**
