@@ -239,8 +239,8 @@
                                 @error('website') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                             </div>
 
-                            <!-- Is Active -->
-                            <div class="mb-6">
+                            <!-- Is Active / GST Member -->
+                            <div class="mb-6 flex flex-wrap gap-6">
                                 <label class="flex items-center">
                                     <input 
                                         type="checkbox" 
@@ -248,6 +248,14 @@
                                         class="w-6 h-6 rounded-none border-gray-300 text-gray-700 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
                                     >
                                     <span class="ml-2 text-md text-gray-700">Active</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input 
+                                        type="checkbox" 
+                                        wire:model.blur="is_gst_member" 
+                                        class="w-6 h-6 rounded-none border-gray-300 text-gray-700 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
+                                    >
+                                    <span class="ml-2 text-md text-gray-700">GST Member</span>
                                 </label>
                             </div>
 

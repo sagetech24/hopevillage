@@ -44,12 +44,20 @@
                                 </div>
                                 @endif
 
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
                                         <label class="text-sm font-medium text-gray-500">Status</label>
                                         <p>
                                             <span class="px-3 py-1 inline-flex text-md leading-5 font-semibold rounded-full {{ $merchant->is_active ? 'bg-green-100 text-green-800 border border-green-500' : 'bg-red-100 text-red-800 border border-red-500' }}">
                                                 {{ $merchant->is_active ? 'Active' : 'Inactive' }}
+                                            </span>
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-500">GST Member</label>
+                                        <p>
+                                            <span class="px-3 py-1 inline-flex text-md leading-5 font-semibold rounded-full {{ $merchant->is_gst_member ? 'bg-green-100 text-green-800 border border-green-500' : 'bg-gray-100 text-gray-700 border border-gray-400' }}">
+                                                {{ $merchant->is_gst_member ? 'Yes' : 'No' }}
                                             </span>
                                         </p>
                                     </div>

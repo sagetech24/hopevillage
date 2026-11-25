@@ -46,6 +46,7 @@ class MerchantApplyTest extends TestCase
             'email' => 'alice@example.com',
             'address' => '7 Kaki Bukit Avenue 3 #01-02',
             'is_active' => false,
+            'is_gst_member' => false,
         ]);
 
         $this->assertDatabaseHas('users', [
@@ -60,8 +61,29 @@ class MerchantApplyTest extends TestCase
 
         $this->assertNotNull($merchant);
         $this->assertNull($merchant->uen);
+        $this->assertFalse($merchant->is_gst_member);
         $this->assertNotNull($user);
         $this->assertTrue($merchant->users()->where('user_id', $user->id)->exists());
+    }
+
+    public function test_merchant_application_saves_gst_member_when_checked(): void
+    {
+        Livewire::test(Apply::class)
+            ->set('name', 'GST Kopitiam')
+            ->set('is_gst_member', true)
+            ->set('contact_name', 'Fiona Tan')
+            ->set('phone', '83456789')
+            ->set('password', 'SecurePass1')
+            ->set('password_confirmation', 'SecurePass1')
+            ->set('terms', true)
+            ->call('submit')
+            ->assertHasNoErrors()
+            ->assertSet('showSuccess', true);
+
+        $this->assertDatabaseHas('merchants', [
+            'name' => 'GST Kopitiam',
+            'is_gst_member' => true,
+        ]);
     }
 
     public function test_merchant_application_saves_optional_uen(): void

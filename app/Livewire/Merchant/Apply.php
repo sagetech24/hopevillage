@@ -21,6 +21,8 @@ class Apply extends Component
 
     public $uen = '';
 
+    public $is_gst_member = false;
+
     public $description = '';
 
     public $contact_name = '';
@@ -66,6 +68,7 @@ class Apply extends Component
         return [
             'name' => 'required|string|max:255',
             'uen' => 'nullable|string|max:20',
+            'is_gst_member' => 'boolean',
             'description' => 'nullable|string',
             'contact_name' => 'required|string|max:255',
             'phone' => [
@@ -238,6 +241,7 @@ class Apply extends Component
                     'postal_code' => $this->postal_code,
                     'website' => $this->website,
                     'is_active' => false, // Subject for approval
+                    'is_gst_member' => $this->is_gst_member,
                 ]);
 
                 // Handle logo upload
@@ -314,6 +318,7 @@ class Apply extends Component
         $this->reset([
             'name',
             'uen',
+            'is_gst_member',
             'description',
             'contact_name',
             'phone',

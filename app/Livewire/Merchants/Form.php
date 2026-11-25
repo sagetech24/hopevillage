@@ -22,6 +22,7 @@ class Form extends Component
     public $postal_code = '';
     public $website = '';
     public $is_active = true;
+    public $is_gst_member = false;
     public $logo;
     public $existingLogo = null;
     public $showMessage = false;
@@ -38,6 +39,7 @@ class Form extends Component
         'postal_code' => 'nullable|string|max:20',
         'website' => 'nullable|url|max:255',
         'is_active' => 'boolean',
+        'is_gst_member' => 'boolean',
         'logo' => 'nullable|image|max:2048',
     ];
 
@@ -59,6 +61,7 @@ class Form extends Component
             $this->postal_code = $merchant->postal_code;
             $this->website = $merchant->website;
             $this->is_active = $merchant->is_active;
+            $this->is_gst_member = $merchant->is_gst_member;
             
             $media = $merchant->getFirstMedia('logo');
             if ($media) {
@@ -90,6 +93,7 @@ class Form extends Component
                 'postal_code' => $this->postal_code,
                 'website' => $this->website,
                 'is_active' => $this->is_active,
+                'is_gst_member' => $this->is_gst_member,
             ]);
             $message = 'Merchant updated successfully.';
         } else {
@@ -105,6 +109,7 @@ class Form extends Component
                 'postal_code' => $this->postal_code,
                 'website' => $this->website,
                 'is_active' => $this->is_active,
+                'is_gst_member' => $this->is_gst_member,
             ]);
             $message = 'Merchant created successfully.';
         }

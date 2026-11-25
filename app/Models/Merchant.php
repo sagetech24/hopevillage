@@ -28,6 +28,7 @@ class Merchant extends Model implements HasMedia
         'postal_code',
         'website',
         'is_active',
+        'is_gst_member',
         'merchant_code',
     ];
 
@@ -35,6 +36,7 @@ class Merchant extends Model implements HasMedia
     {
         return [
             'is_active' => 'boolean',
+            'is_gst_member' => 'boolean',
         ];
     }
 

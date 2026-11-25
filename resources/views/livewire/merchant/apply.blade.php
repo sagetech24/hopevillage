@@ -179,6 +179,24 @@
                                     </div>
 
                                     <div>
+                                        <label for="is_gst_member" class="flex cursor-pointer items-start gap-3">
+                                            <input
+                                                type="checkbox"
+                                                id="is_gst_member"
+                                                wire:model="is_gst_member"
+                                                class="mt-0.5 size-4 shrink-0 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                                            >
+                                            <span class="text-sm leading-relaxed text-gray-700">
+                                                GST Member
+                                                <span class="font-normal text-gray-400">(optional)</span>
+                                            </span>
+                                        </label>
+                                        @error('is_gst_member')
+                                            <p class="mt-1.5 text-sm text-red-500">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+
+                                    <div>
                                         <label for="description" class="mb-1.5 block text-sm font-medium text-gray-700">
                                             Short description about your business
                                             <span class="font-normal text-gray-400">(optional)</span>
