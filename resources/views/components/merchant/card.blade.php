@@ -41,7 +41,10 @@
                         <span class="font-mono">{{ $merchant->merchant_code }}</span>
                     </p>
                 </div>
-                <x-merchant.status-badge :merchant="$merchant" class="shrink-0" />
+                <div class="flex flex-col items-end gap-1 shrink-0">
+                    <x-merchant.status-badge :merchant="$merchant" />
+                    <x-merchant.gst-badge :merchant="$merchant" />
+                </div>
             </div>
 
             <ul class="mt-3 space-y-1.5 text-sm text-gray-600">

@@ -37,7 +37,10 @@
         </div>
     </td>
     <td class="px-5 py-4 whitespace-nowrap">
-        <x-merchant.status-badge :merchant="$merchant" />
+        <div class="flex flex-col items-start gap-1">
+            <x-merchant.status-badge :merchant="$merchant" />
+            <x-merchant.gst-badge :merchant="$merchant" />
+        </div>
     </td>
     <td class="px-5 py-4">
         <div class="space-y-1 max-w-xs">
